@@ -19,7 +19,7 @@ Tool to load Toggl data into Clockify.
   "years": [
     2016,
     2017,
-    ...
+    // Any other years
   ]
 }
 ```
