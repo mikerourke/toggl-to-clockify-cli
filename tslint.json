@@ -10,6 +10,8 @@
     "no-boolean-literal-compare": false,
     "no-console": false,
     "no-magic-numbers": false,
+    "no-unused-variable": false,
+    "no-use-before-declare": false,
     "object-shorthand-properties-first": false,
     "semicolon": [true, "always", "ignore-bound-class-methods"],
     "strict-boolean-expressions": false,

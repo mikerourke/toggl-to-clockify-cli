@@ -45,7 +45,6 @@ export default class Clockify {
       const response = await fetch(fullUrl, {
         ...options,
         headers: {
-          ...options.headers,
           'X-Api-Key': this.apiToken,
           'Content-Type': 'application/json',
         },
@@ -76,6 +75,7 @@ export default class Clockify {
   }
 
   private pause(seconds: number) {
+    console.log(chalk.yellow(`Pausing for ${seconds} seconds...`));
     return new Promise(resolve => {
       setTimeout(() => {
         resolve();
@@ -101,7 +101,7 @@ export default class Clockify {
           this.createNewClockifyTimeEntry(workspace, clockifyEntry),
         ),
       );
-      console.log(chalk.yellow('Pausing for 5 seconds...'));
+
       await this.pause(5);
       yield this.batchIndex + 1;
     }
@@ -214,6 +214,6 @@ export default class Clockify {
         this.transferTogglDataToClockifyWorkspace(workspace),
       ),
     );
-    console.log(chalk.green('Done'));
+    console.log(chalk.green('Clockify processing complete'));
   }
 }

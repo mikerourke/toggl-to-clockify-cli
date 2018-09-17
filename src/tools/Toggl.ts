@@ -150,6 +150,11 @@ export default class Toggl {
   }
 
   private async getEntitiesInWorkspace(workspace: Workspace) {
+    console.log(
+      chalk.cyan(
+        `Fetching time entries and projects in workspace: ${workspace.name}...`,
+      ),
+    );
     const timeEntries = await this.getTimeEntriesForWorkspace(workspace);
     const projects = await this.getProjectsInWorkspace(workspace);
     return {
@@ -182,6 +187,7 @@ export default class Toggl {
   }
 
   public async writeDataToJson() {
+    console.log(chalk.cyan('Fetching workspaces from Toggl...'));
     const workspaces = await this.getWorkspaces();
     const entitiesByWorkspace = await Promise.all(
       workspaces.map(workspace => this.getEntitiesInWorkspace(workspace)),
@@ -195,8 +201,9 @@ export default class Toggl {
       {},
     );
 
+    console.log(chalk.cyan('Writing Toggl data to /data/toggl.json...'));
     const jsonFile = new JsonFile('toggl.json');
     await jsonFile.write(dataToWrite);
-    console.log(chalk.green('Done'));
+    console.log(chalk.green('Toggl processing complete'));
   }
 }
