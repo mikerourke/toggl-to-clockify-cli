@@ -18,8 +18,7 @@ Tool to load Toggl data into Clockify.
   "name": "[Toggl Workspace Name]",
   "years": [
     2016,
-    2017,
-    // Any other years
+    2017
   ]
 }
 ```
