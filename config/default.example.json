@@ -1,0 +1,25 @@
+{
+  "toggl": {
+    "apiToken": "",
+    "email": ""
+  },
+  "clockify": {
+    "apiToken": ""
+  },
+  "workspaces": [
+    {
+      "name": "Workspace 1",
+      "years": [
+        2017,
+        2018
+      ]
+    },
+    {
+      "name": "Workspace 2",
+      "years": [
+        2017,
+        2018
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "extends": [
+    "tslint-config-airbnb-base",
+    "tslint-config-prettier"
+  ],
+  "rules": {
+    "align": false,
+    "import-name": false,
+    "max-line-length": [false],
+    "no-boolean-literal-compare": false,
+    "no-console": false,
+    "no-magic-numbers": false,
+    "object-shorthand-properties-first": false,
+    "semicolon": [true, "always", "ignore-bound-class-methods"],
+    "strict-boolean-expressions": false,
+    "ter-arrow-parens": false,
+    "ter-indent": false,
+    "ter-max-len": [
+      true,
+      80,
+      {
+        "ignoreComments": true,
+        "ignorePattern": "^import |^export {(.*?)}|http|\\s*it\\(",
+        "ignoreTrailingComments": true,
+        "ignoreUrls": true,
+        "ignoreStrings": true,
+        "ignoreTemplateLiterals": true,
+        "ignoreRegExpLiterals": true,
+        "ignoreImports": true
+      }
+    ],
+    "trailing-comma": false,
+    "variable-name": false
+  },
+  "linterOptions": {
+    "exclude": [
+      "node_modules/**/*.ts"
+    ]
+  }
+}

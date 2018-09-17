@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "commonjs",
+    "lib": [
+      "es2016",
+      "es2017.object"
+    ],
+    "strict": true,
+    "noImplicitAny": false,
+    "moduleResolution": "node",
+    "baseUrl": "./",
+    "esModuleInterop": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "./definitions"
+    ]
+  },
+  "include": [
+    "definitions/**/*",
+    "src/**/*"
+  ]
+}

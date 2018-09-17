@@ -1,0 +1,39 @@
+{
+  "name": "toggl-to-clockify",
+  "version": "0.0.1",
+  "description": "Transfer Toggl time entries to Clockify.me.",
+  "repository": "https://github.com/mikerourke/toggl-to-clockify.git",
+  "author": "Mike Rourke <mike.w.rourke@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "lint": "tslint -c tslint.json \"src/**/*.ts\"",
+    "prettier": "prettier --write \"src/**/*.ts\"",
+    "transfer": "ts-node --project tsconfig.json src/index.ts"
+  },
+  "dependencies": {
+    "chalk": "^2.4.1",
+    "date-fns": "^1.29.0",
+    "jsonfile": "^5.0.0",
+    "lodash": "^4.17.11",
+    "node-fetch": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/config": "^0.0.34",
+    "@types/lodash": "^4.14.116",
+    "@types/node": "^10.9.4",
+    "@types/node-fetch": "^2.1.2",
+    "config": "^2.0.1",
+    "prettier": "^1.14.2",
+    "ts-node": "^7.0.1",
+    "tslint": "^5.11.0",
+    "tslint-config-airbnb-base": "^0.2.0",
+    "tslint-config-prettier": "^1.15.0",
+    "typescript": "^3.0.3"
+  },
+  "prettier": {
+    "bracketSpacing": true,
+    "singleQuote": true,
+    "trailingComma": "all"
+  }
+}
