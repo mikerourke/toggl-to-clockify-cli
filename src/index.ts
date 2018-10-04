@@ -10,6 +10,14 @@ const writeTogglData = async () => {
 };
 
 /**
+ * Fetches data from Clockify and writes to the `/data/clockify.json` file.
+ */
+const writeClockifyData = async () => {
+  const clockify = new Clockify();
+  await clockify.writeDataToJson();
+};
+
+/**
  * Transfers Toggl data to Clockify.
  */
 const transferTogglToClockify = async () => {
@@ -25,4 +33,4 @@ const getTogglDataAndTransfer = async () => {
   await transferTogglToClockify();
 };
 
-getTogglDataAndTransfer();
+// getTogglDataAndTransfer();

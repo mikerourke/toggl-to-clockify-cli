@@ -1,5 +1,3 @@
-// TODO: Add additional comments and logging.
-
 import * as qs from 'querystring';
 import chalk from 'chalk';
 import { format, isSameYear, lastDayOfYear } from 'date-fns';
@@ -7,13 +5,18 @@ import { find, flatten, property, range, reverse, sortBy } from 'lodash';
 import config from 'config';
 import fetch from 'node-fetch';
 import JsonFile from '../utils/JsonFile';
+import {
+  TimeEntryResponse,
+  WorkspaceEntities,
+  WorkspaceResponse,
+} from '../types/toggl';
 
 enum ContextUrl {
   Reports = 'https://toggl.com/reports/api/v2',
   Toggl = 'https://www.toggl.com/api/v8',
 }
 
-interface Workspace {
+interface WorkspaceFromConfig {
   id: string;
   name: string;
   years: number[];
@@ -22,7 +25,11 @@ interface Workspace {
 interface TogglConfig {
   apiToken: string;
   email: string;
-  workspaces: Partial<Workspace>[];
+  workspaces: Partial<WorkspaceFromConfig>[];
+}
+
+interface WorkspaceDetails extends WorkspaceEntities {
+  workspaceName: string;
 }
 
 /**
@@ -82,8 +89,15 @@ export default class Toggl {
     };
   }
 
+  /**
+   * Fetches data from Toggl Reports API and returns details based on specified
+   *    year and page number.
+   * @param workspace Workspace containing projects/time entries.
+   * @param activeYear Limiting year for report records.
+   * @param page Page for report records.
+   */
   private async getDetailedReportForWorkspace(
-    workspace: Workspace,
+    workspace: WorkspaceFromConfig,
     activeYear: number,
     page: number = 1,
   ) {
@@ -100,10 +114,15 @@ export default class Toggl {
     );
   }
 
+  /**
+   * Returns the page count for the specified year
+   * @param workspace Workspace containing projects/time entries.
+   * @param activeYear Limiting year for report records.
+   */
   private async extrapolatePagination(
-    workspace: Workspace,
+    workspace: WorkspaceFromConfig,
     activeYear: number,
-  ) {
+  ): Promise<number> {
     const { per_page, total_count } = await this.getDetailedReportForWorkspace(
       workspace,
       activeYear,
@@ -111,10 +130,16 @@ export default class Toggl {
     return Math.ceil(total_count / per_page);
   }
 
+  /**
+   * Returns an array of Toggl entries from the API that correspond with the
+   *    specified year.
+   * @param workspace Workspace containing projects/time entries.
+   * @param activeYear Limiting year for report records.
+   */
   private async getWorkspaceTimeEntriesForYear(
-    workspace: Workspace,
+    workspace: WorkspaceFromConfig,
     activeYear: number,
-  ) {
+  ): Promise<TimeEntryResponse[]> {
     const totalPageCount = await this.extrapolatePagination(
       workspace,
       activeYear,
@@ -127,10 +152,16 @@ export default class Toggl {
       ),
     );
     const pageEntries = dataForAllPages.map(property('data'));
-    return flatten(pageEntries);
+    return flatten(pageEntries) as TimeEntryResponse[];
   }
 
-  private async getTimeEntriesForWorkspace(workspace: Workspace) {
+  /**
+   * Returns all Toggl time entries for the specified workspace (for all years).
+   * @param workspace Workspace containing projects/time entries.
+   */
+  private async getTimeEntriesForWorkspace(
+    workspace: WorkspaceFromConfig,
+  ): Promise<TimeEntryResponse[]> {
     const timeEntriesForYear = await Promise.all(
       workspace.years.map(activeYear =>
         this.getWorkspaceTimeEntriesForYear(workspace, activeYear),
@@ -142,14 +173,24 @@ export default class Toggl {
     return reverse(sortedEntries);
   }
 
-  private async getProjectsInWorkspace(workspace: Workspace) {
+  /**
+   * Fetches projects from the Toggl API for the specified workspace.
+   * @param workspace Workspace containing projects/time entries.
+   */
+  private async getProjectsInWorkspace(workspace: WorkspaceFromConfig) {
     return await this.makeApiRequest(
       ContextUrl.Toggl,
       `/workspaces/${workspace.id}/projects`,
     );
   }
 
-  private async getEntitiesInWorkspace(workspace: Workspace) {
+  /**
+   * Fetches time entries and projects from the specified Toggl workspace.
+   * @param workspace
+   */
+  private async getWorkspaceDetails(
+    workspace: WorkspaceFromConfig,
+  ): Promise<WorkspaceDetails> {
     console.log(
       chalk.cyan(
         `Fetching time entries and projects in workspace: ${workspace.name}...`,
@@ -164,14 +205,18 @@ export default class Toggl {
     };
   }
 
-  private async getWorkspaces() {
+  /**
+   * Fetches Toggl workspaces and returns array of records with ID, name, and
+   *    associated contents from config file.
+   */
+  private async getWorkspaces(): Promise<WorkspaceFromConfig[]> {
     const results = await this.makeApiRequest(ContextUrl.Toggl, '/workspaces');
 
     // Only return workspaces specified in config file:
-    return results.reduce((acc, { id, name }) => {
+    return results.reduce((acc, { id, name }: WorkspaceResponse) => {
       const configWorkspace = find(this.togglConfig.workspaces, {
         name,
-      }) as any;
+      }) as WorkspaceFromConfig;
 
       if (!configWorkspace) return acc;
 
@@ -186,15 +231,19 @@ export default class Toggl {
     }, []);
   }
 
-  public async writeDataToJson() {
+  /**
+   * Writes projects and time entries for all workspaces to toggl.json in the
+   *    /data directory.
+   */
+  public async writeDataToJson(): Promise<void> {
     console.log(chalk.cyan('Fetching workspaces from Toggl...'));
     const workspaces = await this.getWorkspaces();
     const entitiesByWorkspace = await Promise.all(
-      workspaces.map(workspace => this.getEntitiesInWorkspace(workspace)),
+      workspaces.map(workspace => this.getWorkspaceDetails(workspace)),
     );
 
     const dataToWrite = entitiesByWorkspace.reduce(
-      (acc, { workspaceName, ...rest }: any) => ({
+      (acc, { workspaceName, ...rest }: WorkspaceDetails) => ({
         ...acc,
         [workspaceName]: rest,
       }),

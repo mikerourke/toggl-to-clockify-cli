@@ -4,8 +4,8 @@ import fetch from 'node-fetch';
 import { drop, get, isNil, take } from 'lodash';
 import JsonFile from '../utils/JsonFile';
 import {
-  Project as TogglProject,
-  TimeEntry as TogglTimeEntry,
+  ProjectResponse as TogglProject,
+  TimeEntryResponse as TogglTimeEntry,
   TogglData,
 } from '../types/toggl';
 import {
@@ -88,7 +88,7 @@ export default class Clockify {
    * Pauses execution for the specified number of seconds.
    * @param seconds Number of seconds to pause for.
    */
-  private pause(seconds: number) {
+  private pause(seconds: number): Promise<void> {
     console.log(chalk.yellow(`Pausing for ${seconds} seconds...`));
     return new Promise(resolve => {
       setTimeout(() => {
@@ -174,7 +174,9 @@ export default class Clockify {
    *    from Toggl entries.
    * @param workspace Workspace containing time entries.
    */
-  private async transferTimeEntriesFromToggl(workspace: Workspace) {
+  private async transferTimeEntriesFromToggl(
+    workspace: Workspace,
+  ): Promise<void> {
     const validEntries = this.buildValidClockifyEntries(workspace);
     this.batchIndex = 0;
     const batchCount = Math.ceil(validEntries.length / BATCH_STEP);
@@ -216,7 +218,7 @@ export default class Clockify {
   private async createClockifyProjectRequest(
     workspace: Workspace,
     clockifyProject: ClockifyProjectRequest,
-  ) {
+  ): Promise<void> {
     await this.makeApiRequest(`/workspaces/${workspace.id}/projects/`, {
       method: 'POST',
       body: JSON.stringify(clockifyProject),
@@ -228,7 +230,7 @@ export default class Clockify {
    *    workspace.
    * @param workspace Workspace containing projects.
    */
-  private async transferProjectsFromToggl(workspace: Workspace) {
+  private async transferProjectsFromToggl(workspace: Workspace): Promise<void> {
     const clockifyProjectNames = Object.keys(this.projectsByName);
     const togglProjects = get(this.togglData, [workspace.name, 'projects'], []);
 
@@ -262,11 +264,15 @@ export default class Clockify {
    * Transfers Toggl projects and entries to Clockify.
    * @param workspace Workspace containing projects/time entries.
    */
-  private async transferTogglDataToClockifyWorkspace(workspace: Workspace) {
+  private async transferTogglDataToClockifyWorkspace(
+    workspace: Workspace,
+  ): Promise<void> {
     await this.loadClockifyProjectsByName(workspace);
     await this.transferProjectsFromToggl(workspace);
     await this.transferTimeEntriesFromToggl(workspace);
   }
+
+  private async getClockifyDetails() {}
 
   /**
    * Returns the Clockify workspaces. If they don't match the name of the
@@ -281,9 +287,62 @@ export default class Clockify {
    * Populate the private `togglData` variable with the contents of the JSON
    *    file created in the Toggl class.
    */
-  private async loadTogglDataFromJson() {
+  private async loadTogglDataFromJson(): Promise<void> {
     const jsonFile = new JsonFile('toggl.json');
     this.togglData = (await jsonFile.read()) as TogglData;
+  }
+
+  /**
+   * Fetches Clockfify projects and time entries for specified workspace from
+   *    API, removes unneeded fields, and returns object with entities and
+   *    workspace name.
+   * @param workspace Workspace containing projects/time entries.
+   */
+  private async getClockifyDataForWorkspace(workspace: Workspace) {
+    const projectsFromApi = await this.makeApiRequest(
+      `/workspaces/${workspace.id}/projects/`,
+    );
+    const timeEntriesFromApi = await this.makeApiRequest(
+      `/workspaces/${workspace.id}/timeEntries/`,
+    );
+    const projects = projectsFromApi.map(({ memberships, ...rest }) => rest);
+    const timeEntries = timeEntriesFromApi.map(
+      ({ user, project, timeInterval, ...rest }) => ({
+        ...rest,
+        ...timeInterval,
+      }),
+    );
+
+    return {
+      projects,
+      timeEntries,
+      workspaceName: workspace.name,
+    };
+  }
+
+  /**
+   * Fetches projects and time entries from Clockify API and writes to
+   *    /data/clockify.json. This is used for reference only and not required
+   *    to transfer data to Toggl.
+   */
+  public async writeDataToJson(): Promise<void> {
+    console.log(chalk.cyan('Fetching workspaces from Clockify...'));
+    const workspaces = await this.getWorkspaces();
+    const entitiesByWorkspace = await Promise.all(
+      workspaces.map(workspace => this.getClockifyDataForWorkspace(workspace)),
+    );
+    const dataToWrite = entitiesByWorkspace.reduce(
+      (acc, { workspaceName, ...rest }) => ({
+        ...acc,
+        [workspaceName]: rest,
+      }),
+      {},
+    );
+
+    console.log(chalk.cyan('Writing Clockify data to /data/clockify.json...'));
+    const jsonFile = new JsonFile('clockify.json');
+    await jsonFile.write(dataToWrite);
+    console.log(chalk.green('Clockify processing complete'));
   }
 
   /**
@@ -291,7 +350,7 @@ export default class Clockify {
    *    entries from the results, and submits the new entries to the Clockify
    *    API for each workspace.
    */
-  public async transferAllDataFromToggl() {
+  public async transferAllDataFromToggl(): Promise<void> {
     await this.loadTogglDataFromJson();
     const workspaces = await this.getWorkspaces();
     await Promise.all(

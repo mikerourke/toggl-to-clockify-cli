@@ -1,4 +1,23 @@
-export interface Project {
+export interface WorkspaceResponse {
+  id: number;
+  name: string;
+  profile: number;
+  premium: boolean;
+  admin: boolean;
+  default_hourly_rate: number;
+  default_currency: string;
+  only_admins_may_create_projects: boolean;
+  only_admins_see_billable_rates: boolean;
+  only_admins_see_team_dashboard: boolean;
+  projects_billable_by_default: boolean;
+  rounding: number;
+  rounding_minutes: number;
+  api_token: string;
+  at: string;
+  ical_enabled: boolean;
+}
+
+export interface ProjectResponse {
   id: number;
   wid: number;
   cid: number;
@@ -15,7 +34,7 @@ export interface Project {
   hex_color: string;
 }
 
-export interface TimeEntry {
+export interface TimeEntryResponse {
   id: number;
   pid: number;
   tid: number | null;
@@ -39,8 +58,8 @@ export interface TimeEntry {
 }
 
 export interface WorkspaceEntities {
-  projects: Project[];
-  timeEntries: TimeEntry[];
+  projects: ProjectResponse[];
+  timeEntries: TimeEntryResponse[];
 }
 
 export type TogglData = {
