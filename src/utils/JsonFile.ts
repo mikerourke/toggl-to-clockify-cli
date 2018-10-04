@@ -21,11 +21,6 @@ export default class JsonFile {
   }
 
   public write(contents: any) {
-    const validation = this.validateFile();
-    if (validation !== null) {
-      return Promise.reject(validation);
-    }
-
     return new Promise((resolve, reject) => {
       jsonFile.writeFile(
         this.filePath,
