@@ -76,3 +76,4 @@ typings/
 
 /data/*.json
 /config/default.json
+lib/

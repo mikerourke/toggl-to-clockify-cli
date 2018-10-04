@@ -9,7 +9,9 @@
     "strict": true,
     "noImplicitAny": false,
     "moduleResolution": "node",
+    "outDir": "lib",
     "baseUrl": "./",
+    "removeComments": true,
     "esModuleInterop": true,
     "typeRoots": [
       "./node_modules/@types",

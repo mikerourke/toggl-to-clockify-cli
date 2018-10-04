@@ -7,6 +7,8 @@
   "license": "MIT",
   "private": false,
   "scripts": {
+    "precompile": "rimraf ./lib",
+    "compile": "tsc",
     "lint": "tslint -c tslint.json \"src/**/*.ts\"",
     "prettier": "prettier --write \"src/**/*.ts\"",
     "transfer": "ts-node --project tsconfig.json src/index.ts"
@@ -25,6 +27,7 @@
     "@types/node-fetch": "^2.1.2",
     "config": "^2.0.1",
     "prettier": "^1.14.2",
+    "rimraf": "^2.6.2",
     "ts-node": "^7.0.1",
     "tslint": "^5.11.0",
     "tslint-config-airbnb-base": "^0.2.0",
