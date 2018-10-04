@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import * as jsonFile from 'jsonfile';
 
@@ -12,7 +13,19 @@ export default class JsonFile {
     this.filePath = path.resolve(process.cwd(), 'data', fileName);
   }
 
+  private validateFile() {
+    if (!fs.existsSync(this.filePath)) {
+      return new Error(`Could not find JSON file at ${this.filePath}`);
+    }
+    return null;
+  }
+
   public write(contents: any) {
+    const validation = this.validateFile();
+    if (validation !== null) {
+      return Promise.reject(validation);
+    }
+
     return new Promise((resolve, reject) => {
       jsonFile.writeFile(
         this.filePath,
@@ -27,6 +40,11 @@ export default class JsonFile {
   }
 
   public read() {
+    const validation = this.validateFile();
+    if (validation !== null) {
+      return Promise.reject(validation);
+    }
+
     return new Promise((resolve, reject) => {
       jsonFile.readFile(this.filePath, (error: Error | null, contents: any) => {
         if (error) return reject(error);
