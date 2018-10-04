@@ -15,7 +15,7 @@ Tool to load Toggl data into Clockify.
 4. For the `workspaces` field, specify an array of objects that match this format:
 ```json
 {
-  "name": "[Toggl Workspace Name]",
+  "name": "<Toggl Workspace Name>",
   "years": [
     2016,
     2017
