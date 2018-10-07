@@ -14,12 +14,10 @@
     "removeComments": true,
     "esModuleInterop": true,
     "typeRoots": [
-      "./node_modules/@types",
-      "./definitions"
+      "./node_modules/@types"
     ]
   },
   "include": [
-    "definitions/**/*",
     "src/**/*"
   ]
 }

@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { endsWith, isNil } from 'lodash';
 import * as jsonFile from 'jsonfile';
 
 /**
@@ -7,20 +8,22 @@ import * as jsonFile from 'jsonfile';
  * @class
  */
 export default class JsonFile {
-  private readonly filePath: string;
+  public static validatePath(
+    defaultFileName: string,
+    filePath?: string,
+  ): string | null {
+    const pathToValidate = isNil(filePath)
+      ? path.resolve(process.cwd(), `${defaultFileName}.json`)
+      : filePath;
 
-  constructor(private fileName: string) {
-    this.filePath = path.resolve(process.cwd(), 'data', fileName);
-  }
-
-  private validateFile() {
-    if (!fs.existsSync(this.filePath)) {
-      return new Error(`Could not find JSON file at ${this.filePath}`);
-    }
+    const baseOfPath = path.basename(pathToValidate);
+    if (endsWith(baseOfPath, '.json')) return pathToValidate;
     return null;
   }
 
-  public write(contents: any) {
+  constructor(private filePath: string) {}
+
+  public write(contents: any): Promise<void> {
     return new Promise((resolve, reject) => {
       jsonFile.writeFile(
         this.filePath,
@@ -34,10 +37,11 @@ export default class JsonFile {
     });
   }
 
-  public read() {
-    const validation = this.validateFile();
-    if (validation !== null) {
-      return Promise.reject(validation);
+  public async read(): Promise<any> {
+    if (!fs.existsSync(this.filePath)) {
+      return Promise.reject(
+        new Error(`Could not find JSON file at ${this.filePath}`),
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -46,5 +50,10 @@ export default class JsonFile {
         return resolve(contents);
       });
     });
+  }
+
+  public readSync() {
+    if (!fs.existsSync(this.filePath)) return null;
+    return jsonFile.readFileSync(this.filePath);
   }
 }

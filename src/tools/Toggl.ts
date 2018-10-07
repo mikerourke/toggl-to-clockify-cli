@@ -2,9 +2,10 @@ import * as qs from 'querystring';
 import chalk from 'chalk';
 import { format, isSameYear, lastDayOfYear } from 'date-fns';
 import { find, flatten, property, range, reverse, sortBy } from 'lodash';
-import config from 'config';
 import fetch from 'node-fetch';
+import Config, { Settings } from '../utils/Config';
 import JsonFile from '../utils/JsonFile';
+import { GeneralWorkspace } from '../types/common';
 import {
   TimeEntryResponse,
   WorkspaceEntities,
@@ -16,18 +17,6 @@ enum ContextUrl {
   Toggl = 'https://www.toggl.com/api/v8',
 }
 
-interface WorkspaceFromConfig {
-  id: string;
-  name: string;
-  years: number[];
-}
-
-interface TogglConfig {
-  apiToken: string;
-  email: string;
-  workspaces: Partial<WorkspaceFromConfig>[];
-}
-
 interface WorkspaceDetails extends WorkspaceEntities {
   workspaceName: string;
 }
@@ -37,14 +26,10 @@ interface WorkspaceDetails extends WorkspaceEntities {
  * @class
  */
 export default class Toggl {
-  private readonly togglConfig: TogglConfig;
+  private readonly settings: Settings;
 
-  constructor() {
-    this.togglConfig = {
-      apiToken: config.get('toggl.apiToken'),
-      email: config.get('toggl.email'),
-      workspaces: config.get('workspaces'),
-    };
+  constructor(configFilePath: string) {
+    this.settings = Config.loadSettingsFromFile(configFilePath);
   }
 
   /**
@@ -54,7 +39,7 @@ export default class Toggl {
    * @param endpoint Endpoint for fetch call (prefixed with base URL).
    */
   private async makeApiRequest(contextUrl: ContextUrl, endpoint: string) {
-    const authString = `${this.togglConfig.apiToken}:api_token`;
+    const authString = `${this.settings.togglApiToken}:api_token`;
     const encodedAuth = Buffer.from(authString).toString('base64');
     const fullUrl = `${contextUrl}${endpoint}`;
     const response = await fetch(fullUrl, {
@@ -97,13 +82,13 @@ export default class Toggl {
    * @param page Page for report records.
    */
   private async getDetailedReportForWorkspace(
-    workspace: WorkspaceFromConfig,
+    workspace: GeneralWorkspace,
     activeYear: number,
     page: number = 1,
   ) {
     const queryString = qs.stringify({
       workspace_id: workspace.id,
-      user_agent: this.togglConfig.email,
+      user_agent: this.settings.email,
       page,
       ...this.getDateRangesForYear(activeYear),
     });
@@ -120,7 +105,7 @@ export default class Toggl {
    * @param activeYear Limiting year for report records.
    */
   private async extrapolatePagination(
-    workspace: WorkspaceFromConfig,
+    workspace: GeneralWorkspace,
     activeYear: number,
   ): Promise<number> {
     const { per_page, total_count } = await this.getDetailedReportForWorkspace(
@@ -137,7 +122,7 @@ export default class Toggl {
    * @param activeYear Limiting year for report records.
    */
   private async getWorkspaceTimeEntriesForYear(
-    workspace: WorkspaceFromConfig,
+    workspace: GeneralWorkspace,
     activeYear: number,
   ): Promise<TimeEntryResponse[]> {
     const totalPageCount = await this.extrapolatePagination(
@@ -160,7 +145,7 @@ export default class Toggl {
    * @param workspace Workspace containing projects/time entries.
    */
   private async getTimeEntriesForWorkspace(
-    workspace: WorkspaceFromConfig,
+    workspace: GeneralWorkspace,
   ): Promise<TimeEntryResponse[]> {
     const timeEntriesForYear = await Promise.all(
       workspace.years.map(activeYear =>
@@ -177,7 +162,7 @@ export default class Toggl {
    * Fetches projects from the Toggl API for the specified workspace.
    * @param workspace Workspace containing projects/time entries.
    */
-  private async getProjectsInWorkspace(workspace: WorkspaceFromConfig) {
+  private async getProjectsInWorkspace(workspace: GeneralWorkspace) {
     return await this.makeApiRequest(
       ContextUrl.Toggl,
       `/workspaces/${workspace.id}/projects`,
@@ -189,7 +174,7 @@ export default class Toggl {
    * @param workspace
    */
   private async getWorkspaceDetails(
-    workspace: WorkspaceFromConfig,
+    workspace: GeneralWorkspace,
   ): Promise<WorkspaceDetails> {
     console.log(
       chalk.cyan(
@@ -209,14 +194,14 @@ export default class Toggl {
    * Fetches Toggl workspaces and returns array of records with ID, name, and
    *    associated contents from config file.
    */
-  private async getWorkspaces(): Promise<WorkspaceFromConfig[]> {
+  private async getWorkspaces(): Promise<GeneralWorkspace[]> {
     const results = await this.makeApiRequest(ContextUrl.Toggl, '/workspaces');
 
     // Only return workspaces specified in config file:
     return results.reduce((acc, { id, name }: WorkspaceResponse) => {
-      const configWorkspace = find(this.togglConfig.workspaces, {
+      const configWorkspace = find(this.settings.workspaces, {
         name,
-      }) as WorkspaceFromConfig;
+      }) as GeneralWorkspace;
 
       if (!configWorkspace) return acc;
 
@@ -235,7 +220,7 @@ export default class Toggl {
    * Writes projects and time entries for all workspaces to toggl.json in the
    *    /data directory.
    */
-  public async writeDataToJson(): Promise<void> {
+  public async writeDataToJson(targetPath: string): Promise<void> {
     console.log(chalk.cyan('Fetching workspaces from Toggl...'));
     const workspaces = await this.getWorkspaces();
     const entitiesByWorkspace = await Promise.all(
@@ -250,8 +235,8 @@ export default class Toggl {
       {},
     );
 
-    console.log(chalk.cyan('Writing Toggl data to /data/toggl.json...'));
-    const jsonFile = new JsonFile('toggl.json');
+    console.log(chalk.cyan('Writing Toggl data to JSON file...'));
+    const jsonFile = new JsonFile(targetPath);
     await jsonFile.write(dataToWrite);
     console.log(chalk.green('Toggl processing complete'));
   }

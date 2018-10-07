@@ -10,22 +10,30 @@
     "precompile": "rimraf ./lib",
     "compile": "tsc",
     "lint": "tslint -c tslint.json \"src/**/*.ts\"",
-    "prettier": "prettier --write \"src/**/*.ts\"",
-    "transfer": "ts-node --project tsconfig.json src/index.ts"
+    "prettier": "prettier --write \"src/**/*.ts\""
   },
+  "bin": {
+    "toggl-to-clockify": "./bin/toggl-to-clockify.js"
+  },
+  "files": [
+    "bin",
+    "config",
+    "data",
+    "lib"
+  ],
   "dependencies": {
     "chalk": "^2.4.1",
     "date-fns": "^1.29.0",
     "jsonfile": "^5.0.0",
     "lodash": "^4.17.11",
-    "node-fetch": "^2.2.0"
+    "node-fetch": "^2.2.0",
+    "yargs": "^12.0.2"
   },
   "devDependencies": {
     "@types/config": "^0.0.34",
     "@types/lodash": "^4.14.116",
     "@types/node": "^10.9.4",
     "@types/node-fetch": "^2.1.2",
-    "config": "^2.0.1",
     "prettier": "^1.14.2",
     "rimraf": "^2.6.2",
     "ts-node": "^7.0.1",

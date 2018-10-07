@@ -1,23 +1,20 @@
+// TODO: Update functionality to match Toggl entries when fetching JSON data.
 import chalk from 'chalk';
-import config from 'config';
 import fetch from 'node-fetch';
 import { drop, get, isNil, take } from 'lodash';
+import Config from '../utils/Config';
 import JsonFile from '../utils/JsonFile';
-import {
-  ProjectResponse as TogglProject,
-  TimeEntryResponse as TogglTimeEntry,
-  TogglData,
-} from '../types/toggl';
+import { GeneralWorkspace } from '../types/common';
 import {
   CreateProjectRequest as ClockifyProjectRequest,
   CreateTimeEntryRequest as ClockifyTimeEntryRequest,
   ProjectDtoImpl as ClockifyProjectResponse,
 } from '../types/clockify';
-
-interface Workspace {
-  id: string;
-  name: string;
-}
+import {
+  ProjectResponse as TogglProject,
+  TimeEntryResponse as TogglTimeEntry,
+  TogglData,
+} from '../types/toggl';
 
 // TypeScript polyfill for async iterator:
 if (!(Symbol as any)['asyncIterator']) {
@@ -36,8 +33,10 @@ export default class Clockify {
   private readonly apiToken: string;
   private togglData: TogglData;
 
-  constructor() {
-    this.apiToken = config.get('clockify.apiToken');
+  constructor(configFilePath: string) {
+    const settings = Config.loadSettingsFromFile(configFilePath);
+
+    this.apiToken = settings.clockifyApiToken;
     this.batchIndex = 0;
     this.projectsByName = {};
     this.togglData = {};
@@ -72,7 +71,7 @@ export default class Clockify {
    * @param clockifyTimeEntry Time entry record to add to workspace.
    */
   private async createNewClockifyTimeEntry(
-    workspace: Workspace,
+    workspace: GeneralWorkspace,
     clockifyTimeEntry: ClockifyTimeEntryRequest,
   ) {
     return await this.makeApiRequest(
@@ -105,7 +104,7 @@ export default class Clockify {
    * @param newClockifyTimeEntries Clockify entries to create.
    */
   private async *createEntryBatch(
-    workspace: Workspace,
+    workspace: GeneralWorkspace,
     newClockifyTimeEntries: ClockifyTimeEntryRequest[],
   ) {
     while (true as any) {
@@ -144,7 +143,7 @@ export default class Clockify {
    * @param workspace Workspace containing time entries.
    */
   private buildValidClockifyEntries(
-    workspace: Workspace,
+    workspace: GeneralWorkspace,
   ): ClockifyTimeEntryRequest[] {
     const togglTimeEntries = get(
       this.togglData,
@@ -175,7 +174,7 @@ export default class Clockify {
    * @param workspace Workspace containing time entries.
    */
   private async transferTimeEntriesFromToggl(
-    workspace: Workspace,
+    workspace: GeneralWorkspace,
   ): Promise<void> {
     const validEntries = this.buildValidClockifyEntries(workspace);
     this.batchIndex = 0;
@@ -196,7 +195,7 @@ export default class Clockify {
    * @param workspace Workspace containing projects.
    */
   private async loadClockifyProjectsByName(
-    workspace: Workspace,
+    workspace: GeneralWorkspace,
   ): Promise<void> {
     const results = await this.makeApiRequest(
       `/workspaces/${workspace.id}/projects/?limit=200`,
@@ -216,7 +215,7 @@ export default class Clockify {
    * @param clockifyProject Details for Clockify project to create.
    */
   private async createClockifyProjectRequest(
-    workspace: Workspace,
+    workspace: GeneralWorkspace,
     clockifyProject: ClockifyProjectRequest,
   ): Promise<void> {
     await this.makeApiRequest(`/workspaces/${workspace.id}/projects/`, {
@@ -230,7 +229,9 @@ export default class Clockify {
    *    workspace.
    * @param workspace Workspace containing projects.
    */
-  private async transferProjectsFromToggl(workspace: Workspace): Promise<void> {
+  private async transferProjectsFromToggl(
+    workspace: GeneralWorkspace,
+  ): Promise<void> {
     const clockifyProjectNames = Object.keys(this.projectsByName);
     const togglProjects = get(this.togglData, [workspace.name, 'projects'], []);
 
@@ -265,20 +266,18 @@ export default class Clockify {
    * @param workspace Workspace containing projects/time entries.
    */
   private async transferTogglDataToClockifyWorkspace(
-    workspace: Workspace,
+    workspace: GeneralWorkspace,
   ): Promise<void> {
     await this.loadClockifyProjectsByName(workspace);
     await this.transferProjectsFromToggl(workspace);
     await this.transferTimeEntriesFromToggl(workspace);
   }
 
-  private async getClockifyDetails() {}
-
   /**
    * Returns the Clockify workspaces. If they don't match the name of the
    *    Toggl workspaces, the entries won't be created on Clockify.
    */
-  private async getWorkspaces(): Promise<Workspace[]> {
+  private async getWorkspaces(): Promise<GeneralWorkspace[]> {
     const results = await this.makeApiRequest('/workspaces/');
     return results.map(({ id, name }) => ({ id, name }));
   }
@@ -298,7 +297,7 @@ export default class Clockify {
    *    workspace name.
    * @param workspace Workspace containing projects/time entries.
    */
-  private async getClockifyDataForWorkspace(workspace: Workspace) {
+  private async getClockifyDataForWorkspace(workspace: GeneralWorkspace) {
     const projectsFromApi = await this.makeApiRequest(
       `/workspaces/${workspace.id}/projects/`,
     );
@@ -323,9 +322,10 @@ export default class Clockify {
   /**
    * Fetches projects and time entries from Clockify API and writes to
    *    /data/clockify.json. This is used for reference only and not required
-   *    to transfer data to Toggl.
+   *    to transfer data to Toggl (which is why there is no accommodation for
+   *    rate limiting).
    */
-  public async writeDataToJson(): Promise<void> {
+  public async writeDataToJson(targetPath: string): Promise<void> {
     console.log(chalk.cyan('Fetching workspaces from Clockify...'));
     const workspaces = await this.getWorkspaces();
     const entitiesByWorkspace = await Promise.all(
@@ -339,8 +339,8 @@ export default class Clockify {
       {},
     );
 
-    console.log(chalk.cyan('Writing Clockify data to /data/clockify.json...'));
-    const jsonFile = new JsonFile('clockify.json');
+    console.log(chalk.cyan('Writing Clockify data to JSON file...'));
+    const jsonFile = new JsonFile(targetPath);
     await jsonFile.write(dataToWrite);
     console.log(chalk.green('Clockify processing complete'));
   }

@@ -77,3 +77,4 @@ typings/
 /data/*.json
 /config/default.json
 lib/
+t2c.json
