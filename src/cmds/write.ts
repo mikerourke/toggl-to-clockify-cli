@@ -12,9 +12,9 @@ export const desc = 'Fetches data from API and writes a to JSON file';
 export const builder = yargs => {
   yargs
     .options({
-      source: {
-        alias: 's',
-        describe: 'Source of data',
+      tool: {
+        alias: 't',
+        describe: 'Tool to get data for',
         choices: Object.values(ToolName),
         demandOption: true,
       },
@@ -30,16 +30,16 @@ export const builder = yargs => {
 };
 
 interface Parameters {
-  source: ToolName;
+  tool: ToolName;
   config?: string;
   output?: string;
 }
 
 export const handler = (parameters: Parameters) => {
-  const { source, output, config } = parameters;
+  const { tool, output, config } = parameters;
   const configFilePath = validateConfigFile(config);
 
-  const outputPath = JsonFile.validatePath(source, output);
+  const outputPath = JsonFile.validatePath(tool, output);
   if (outputPath === null) {
     console.log(
       chalk.red('You must specify a JSON file name for the output path'),
@@ -51,7 +51,7 @@ export const handler = (parameters: Parameters) => {
   const entity = {
     [ToolName.Clockify]: new Clockify(configFilePath),
     [ToolName.Toggl]: new Toggl(configFilePath),
-  }[source];
+  }[tool];
 
   entity.writeDataToJson(outputPath);
 };
