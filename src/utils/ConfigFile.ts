@@ -1,14 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import chalk from 'chalk';
 import JsonFile from './JsonFile';
-
-export interface Settings {
-  email: string;
-  togglApiToken: string;
-  clockifyApiToken: string;
-  workspaces: { name: string; years: number[] }[];
-}
+import { Config } from '../types/common';
 
 export const defaultSettings = {
   email: '',
@@ -17,7 +10,7 @@ export const defaultSettings = {
   workspaces: [],
 };
 
-export default class Config {
+export default class ConfigFile {
   public static validateFilePath(filePath?: string | null): string | null {
     const configFilePath = path.resolve(process.cwd(), 't2c.json');
     if (filePath && fs.existsSync(filePath)) return filePath;
@@ -25,7 +18,7 @@ export default class Config {
     return null;
   }
 
-  public static loadSettingsFromFile(filePath: string): Settings {
+  public static loadEntriesFromFile(filePath: string): Config {
     const jsonFile = new JsonFile(filePath);
     const configFileContents = jsonFile.readSync();
     if (configFileContents === null) return defaultSettings;
@@ -35,6 +28,5 @@ export default class Config {
   public static async generateFile(targetPath: string) {
     const configFile = new JsonFile(targetPath);
     await configFile.write(defaultSettings);
-    console.log(chalk.green(`Config file created at ${targetPath}`));
   }
 }

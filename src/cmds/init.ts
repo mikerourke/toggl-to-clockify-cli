@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import Config from '../utils/Config';
+import ConfigFile from '../utils/ConfigFile';
 import JsonFile from '../utils/JsonFile';
 
 export const command = 'init';
@@ -36,9 +36,9 @@ export const handler = (parameters: Parameters) => {
     return;
   }
 
-  Config.generateFile(outputPath)
+  ConfigFile.generateFile(outputPath)
     .then(() => {
-      console.log(chalk.green('Config file successfully created'));
+      console.log(chalk.green('ConfigFile file successfully created'));
     })
     .catch(error => {
       console.log(chalk.red(`Error creating file: ${error.message}`));

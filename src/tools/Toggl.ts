@@ -1,12 +1,14 @@
 import * as qs from 'querystring';
 import chalk from 'chalk';
 import { format, isSameYear, lastDayOfYear } from 'date-fns';
-import { find, flatten, property, range, reverse, sortBy } from 'lodash';
+import { find, flatten, reverse, sortBy, uniq } from 'lodash';
 import fetch from 'node-fetch';
-import Config, { Settings } from '../utils/Config';
+import ConfigFile from '../utils/ConfigFile';
 import JsonFile from '../utils/JsonFile';
-import { GeneralWorkspace } from '../types/common';
+import { Config, ConfigWorkspace, GeneralWorkspace } from '../types/common';
 import {
+  ClientResponse,
+  ProjectResponse,
   TimeEntryResponse,
   WorkspaceEntities,
   WorkspaceResponse,
@@ -21,15 +23,26 @@ interface WorkspaceDetails extends WorkspaceEntities {
   workspaceName: string;
 }
 
+// TypeScript polyfill for async iterator:
+if (!(Symbol as any)['asyncIterator']) {
+  (Symbol as any)['asyncIterator'] = Symbol();
+}
+
 /**
  * Performs required functions associated with Toggl.
  * @class
  */
 export default class Toggl {
-  private readonly settings: Settings;
+  private readonly config: Config;
+  private currentPage: number;
+  private workspaceIndex: number;
+  private yearIndex: number;
 
   constructor(configFilePath: string) {
-    this.settings = Config.loadSettingsFromFile(configFilePath);
+    this.config = ConfigFile.loadEntriesFromFile(configFilePath);
+    this.currentPage = 1;
+    this.workspaceIndex = 0;
+    this.yearIndex = 0;
   }
 
   /**
@@ -39,7 +52,7 @@ export default class Toggl {
    * @param endpoint Endpoint for fetch call (prefixed with base URL).
    */
   private async makeApiRequest(contextUrl: ContextUrl, endpoint: string) {
-    const authString = `${this.settings.togglApiToken}:api_token`;
+    const authString = `${this.config.togglApiToken}:api_token`;
     const encodedAuth = Buffer.from(authString).toString('base64');
     const fullUrl = `${contextUrl}${endpoint}`;
     const response = await fetch(fullUrl, {
@@ -49,6 +62,22 @@ export default class Toggl {
       },
     });
     return await response.json();
+  }
+
+  /**
+   * Pauses execution for the specified number of seconds.
+   * @param [seconds=1] Number of seconds to pause for.
+   */
+  private pause(seconds: number = 1): Promise<void> {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve();
+      }, seconds * 1000);
+    });
+  }
+
+  private printStatus(message: string) {
+    console.log(chalk.cyan(message));
   }
 
   /**
@@ -77,7 +106,7 @@ export default class Toggl {
   /**
    * Fetches data from Toggl Reports API and returns details based on specified
    *    year and page number.
-   * @param workspace Workspace containing projects/time entries.
+   * @param workspace Workspace to fetch data for.
    * @param activeYear Limiting year for report records.
    * @param page Page for report records.
    */
@@ -88,7 +117,7 @@ export default class Toggl {
   ) {
     const queryString = qs.stringify({
       workspace_id: workspace.id,
-      user_agent: this.settings.email,
+      user_agent: this.config.email,
       page,
       ...this.getDateRangesForYear(activeYear),
     });
@@ -101,7 +130,7 @@ export default class Toggl {
 
   /**
    * Returns the page count for the specified year
-   * @param workspace Workspace containing projects/time entries.
+   * @param workspace Workspace to fetch data for.
    * @param activeYear Limiting year for report records.
    */
   private async extrapolatePagination(
@@ -115,10 +144,33 @@ export default class Toggl {
     return Math.ceil(total_count / per_page);
   }
 
+  private async *getTimeEntriesForYearIterable(
+    workspace: GeneralWorkspace,
+    activeYear: number,
+  ): AsyncIterableIterator<TimeEntryResponse[]> {
+    while (true as any) {
+      const timeEntries = await this.getDetailedReportForWorkspace(
+        workspace,
+        activeYear,
+        this.currentPage,
+      );
+      await this.pause();
+      this.currentPage += 1;
+      yield timeEntries.data as TimeEntryResponse[];
+    }
+  }
+
+  private printTimeEntriesStatus(workspaceName: string, activeYear: number) {
+    this.printStatus(
+      `Getting time entries for page ${this.currentPage} for ` +
+        `${workspaceName} for the year of ${activeYear}...`,
+    );
+  }
+
   /**
    * Returns an array of Toggl entries from the API that correspond with the
    *    specified year.
-   * @param workspace Workspace containing projects/time entries.
+   * @param workspace Workspace to fetch data for.
    * @param activeYear Limiting year for report records.
    */
   private async getWorkspaceTimeEntriesForYear(
@@ -129,40 +181,74 @@ export default class Toggl {
       workspace,
       activeYear,
     );
-    const pages = range(1, totalPageCount + 1);
 
-    const dataForAllPages = await Promise.all(
-      pages.map(page =>
-        this.getDetailedReportForWorkspace(workspace, activeYear, page),
-      ),
-    );
-    const pageEntries = dataForAllPages.map(property('data'));
-    return flatten(pageEntries) as TimeEntryResponse[];
+    const entriesForAllPages: any = [];
+
+    // Ensure the first page is printed:
+    this.printTimeEntriesStatus(workspace.name, activeYear);
+
+    for await (const timeEntriesForPage of this.getTimeEntriesForYearIterable(
+      workspace,
+      activeYear,
+    )) {
+      this.printTimeEntriesStatus(workspace.name, activeYear);
+      entriesForAllPages.push(timeEntriesForPage);
+      if (
+        timeEntriesForPage.length === 0 ||
+        this.currentPage === totalPageCount
+      ) {
+        this.currentPage = 1;
+        break;
+      }
+    }
+
+    return flatten(entriesForAllPages) as TimeEntryResponse[];
+  }
+
+  private async *getTimeEntriesForWorkspaceIteratable(
+    workspace: ConfigWorkspace,
+  ) {
+    while (true as any) {
+      const yearEntries = await this.getWorkspaceTimeEntriesForYear(
+        workspace,
+        workspace.years[this.yearIndex],
+      );
+      await this.pause();
+      yield yearEntries;
+    }
   }
 
   /**
    * Returns all Toggl time entries for the specified workspace (for all years).
-   * @param workspace Workspace containing projects/time entries.
+   * @param workspace Workspace to fetch data for.
    */
   private async getTimeEntriesForWorkspace(
-    workspace: GeneralWorkspace,
+    workspace: ConfigWorkspace,
   ): Promise<TimeEntryResponse[]> {
-    const timeEntriesForYear = await Promise.all(
-      workspace.years.map(activeYear =>
-        this.getWorkspaceTimeEntriesForYear(workspace, activeYear),
-      ),
-    );
+    const timeEntriesForYear: any = [];
 
-    // Sort descending by date:
-    const sortedEntries = sortBy(flatten(timeEntriesForYear), 'start');
+    for await (const yearEntries of this.getTimeEntriesForWorkspaceIteratable(
+      workspace,
+    )) {
+      timeEntriesForYear.push(yearEntries);
+      this.yearIndex += 1;
+      if (this.yearIndex === workspace.years.length) {
+        this.yearIndex = 0;
+        break;
+      }
+    }
+
+    const sortedEntries: any = sortBy(flatten(timeEntriesForYear), 'start');
     return reverse(sortedEntries);
   }
 
   /**
    * Fetches projects from the Toggl API for the specified workspace.
-   * @param workspace Workspace containing projects/time entries.
+   * @param workspace Workspace to fetch data for.
    */
-  private async getProjectsInWorkspace(workspace: GeneralWorkspace) {
+  private async getProjectsInWorkspace(
+    workspace: GeneralWorkspace,
+  ): Promise<ProjectResponse[]> {
     return await this.makeApiRequest(
       ContextUrl.Toggl,
       `/workspaces/${workspace.id}/projects`,
@@ -170,36 +256,72 @@ export default class Toggl {
   }
 
   /**
+   * Fetches clients from the Toggl API for the specified workspace.
+   * @param workspace Workspace to fetch data for.
+   */
+  private async getClientsInWorkspace(
+    workspace: GeneralWorkspace,
+  ): Promise<ClientResponse[]> {
+    return await this.makeApiRequest(
+      ContextUrl.Toggl,
+      `/workspaces/${workspace.id}/clients`,
+    );
+  }
+
+  private extrapolateTags(
+    timeEntries: TimeEntryResponse[],
+  ): { id: string; name: string }[] {
+    const allTags: any = [];
+    timeEntries.forEach(({ tags }) => {
+      if (tags.length !== 0) allTags.push(tags);
+    });
+    const flattenedTags = flatten(allTags) as string[];
+    return uniq(flattenedTags).map(tagName => ({ id: tagName, name: tagName }));
+  }
+
+  /**
    * Fetches time entries and projects from the specified Toggl workspace.
-   * @param workspace
+   * @param workspace Workspace to fetch data for.
    */
   private async getWorkspaceDetails(
-    workspace: GeneralWorkspace,
+    workspace: ConfigWorkspace,
   ): Promise<WorkspaceDetails> {
-    console.log(
-      chalk.cyan(
-        `Fetching time entries and projects in workspace: ${workspace.name}...`,
-      ),
+    this.printStatus(
+      `Fetching time entries and projects in workspace: ${workspace.name}...`,
     );
-    const timeEntries = await this.getTimeEntriesForWorkspace(workspace);
+    const clients = await this.getClientsInWorkspace(workspace);
     const projects = await this.getProjectsInWorkspace(workspace);
+    const timeEntries = await this.getTimeEntriesForWorkspace(workspace);
+    const tags = this.extrapolateTags(timeEntries);
     return {
       workspaceName: workspace.name,
+      clients,
       projects,
       timeEntries,
+      tags,
     };
+  }
+
+  private async *getWorkspaceDetailsIteratable(workspaces: ConfigWorkspace[]) {
+    while (true as any) {
+      const details = await this.getWorkspaceDetails(
+        workspaces[this.workspaceIndex],
+      );
+      await this.pause();
+      yield details;
+    }
   }
 
   /**
    * Fetches Toggl workspaces and returns array of records with ID, name, and
    *    associated contents from config file.
    */
-  private async getWorkspaces(): Promise<GeneralWorkspace[]> {
+  private async getWorkspaces(): Promise<ConfigWorkspace[]> {
     const results = await this.makeApiRequest(ContextUrl.Toggl, '/workspaces');
 
     // Only return workspaces specified in config file:
     return results.reduce((acc, { id, name }: WorkspaceResponse) => {
-      const configWorkspace = find(this.settings.workspaces, {
+      const configWorkspace = find(this.config.workspaces, {
         name,
       }) as GeneralWorkspace;
 
@@ -217,15 +339,24 @@ export default class Toggl {
   }
 
   /**
-   * Writes projects and time entries for all workspaces to toggl.json in the
-   *    /data directory.
+   * Writes clients, projects, and time entries for all workspaces to the
+   *    specified target path.
+   * @param targetPath Output path to write JSON file data.
    */
   public async writeDataToJson(targetPath: string): Promise<void> {
-    console.log(chalk.cyan('Fetching workspaces from Toggl...'));
+    this.printStatus('Fetching workspaces from Toggl...');
     const workspaces = await this.getWorkspaces();
-    const entitiesByWorkspace = await Promise.all(
-      workspaces.map(workspace => this.getWorkspaceDetails(workspace)),
-    );
+    const entitiesByWorkspace: any = [];
+
+    this.workspaceIndex = 0;
+
+    for await (const entitiesInWorkspace of this.getWorkspaceDetailsIteratable(
+      workspaces,
+    )) {
+      entitiesByWorkspace.push(entitiesInWorkspace);
+      this.workspaceIndex += 1;
+      if (this.workspaceIndex === workspaces.length) break;
+    }
 
     const dataToWrite = entitiesByWorkspace.reduce(
       (acc, { workspaceName, ...rest }: WorkspaceDetails) => ({
@@ -235,7 +366,7 @@ export default class Toggl {
       {},
     );
 
-    console.log(chalk.cyan('Writing Toggl data to JSON file...'));
+    this.printStatus('Writing Toggl data to JSON file...');
     const jsonFile = new JsonFile(targetPath);
     await jsonFile.write(dataToWrite);
     console.log(chalk.green('Toggl processing complete'));

@@ -1,19 +1,22 @@
-// TODO: Update functionality to match Toggl entries when fetching JSON data.
 import chalk from 'chalk';
 import fetch from 'node-fetch';
-import { drop, get, isNil, take } from 'lodash';
-import Config from '../utils/Config';
+import { drop, find, get, isNil, take } from 'lodash';
+import ConfigFile from '../utils/ConfigFile';
 import JsonFile from '../utils/JsonFile';
-import { GeneralWorkspace } from '../types/common';
+import { Config, EntityGroup, GeneralWorkspace } from '../types/common';
 import {
+  ClientDto as ClockifyClientResponse,
   CreateProjectRequest as ClockifyProjectRequest,
   CreateTimeEntryRequest as ClockifyTimeEntryRequest,
   ProjectDtoImpl as ClockifyProjectResponse,
+  TimeEntryFullDto as ClockifyTimeEntryResponse,
 } from '../types/clockify';
 import {
+  ClientResponse as TogglClient,
   ProjectResponse as TogglProject,
   TimeEntryResponse as TogglTimeEntry,
   TogglData,
+  WorkspaceResponse,
 } from '../types/toggl';
 
 // TypeScript polyfill for async iterator:
@@ -23,22 +26,40 @@ if (!(Symbol as any)['asyncIterator']) {
 
 const BATCH_STEP = 25;
 
+interface EntityRecord {
+  id: string;
+  name: string;
+  workspaceId: string;
+}
+
+interface EntityGroupsByName {
+  [EntityGroup.Clients]: Record<string, string>;
+  [EntityGroup.Projects]: Record<string, string>;
+  [EntityGroup.Tags]: Record<string, string>;
+}
+
 /**
  * Performs actions associated with the Clockify API and provides functionality
  *    to transfer Toggl data to Clockify.
  */
 export default class Clockify {
+  private readonly config: Config;
   private batchIndex: number;
-  private projectsByName: Record<string, string>;
-  private readonly apiToken: string;
+  private entityIndex: number;
+  private workspaceIndex: number;
+  private entityGroupsByName: EntityGroupsByName;
   private togglData: TogglData;
 
   constructor(configFilePath: string) {
-    const settings = Config.loadSettingsFromFile(configFilePath);
-
-    this.apiToken = settings.clockifyApiToken;
+    this.config = ConfigFile.loadEntriesFromFile(configFilePath);
     this.batchIndex = 0;
-    this.projectsByName = {};
+    this.entityIndex = 0;
+    this.workspaceIndex = 0;
+    this.entityGroupsByName = {
+      [EntityGroup.Clients]: {},
+      [EntityGroup.Projects]: {},
+      [EntityGroup.Tags]: {},
+    };
     this.togglData = {};
   }
 
@@ -50,45 +71,44 @@ export default class Clockify {
    */
   private async makeApiRequest(endpoint: string, options: any = {}) {
     const fullUrl = `https://api.clockify.me/api${endpoint}`;
-    try {
-      const response = await fetch(fullUrl, {
-        ...options,
-        headers: {
-          'X-Api-Key': this.apiToken,
-          'Content-Type': 'application/json',
-        },
-      });
-      return await response.json();
-    } catch (error) {
-      console.log(chalk.red(`Error encountered: ${error}`));
-      return Promise.reject();
-    }
+    const response = await fetch(fullUrl, {
+      ...options,
+      headers: {
+        'X-Api-Key': this.config.clockifyApiToken,
+        'Content-Type': 'application/json',
+      },
+    });
+    return await response.json();
+  }
+
+  private printStatus(message: string) {
+    console.log(chalk.cyan(message));
   }
 
   /**
-   * Creates a new entry within the specified workspace.
-   * @param workspace Workspace to add time entry to.
-   * @param clockifyTimeEntry Time entry record to add to workspace.
+   * Submit request to Clockify API to create a new entity.
+   * @param workspace Workspace to add entity to.
+   * @param entityGroup Entity group representing type to create.
+   * @param clockifyEntity Details for Clockify entity to create.
    */
-  private async createNewClockifyTimeEntry(
+  private async createClockifyEntity<CreatedEntity>(
     workspace: GeneralWorkspace,
-    clockifyTimeEntry: ClockifyTimeEntryRequest,
-  ) {
-    return await this.makeApiRequest(
-      `/workspaces/${workspace.id}/timeEntries/`,
-      {
-        method: 'POST',
-        body: JSON.stringify(clockifyTimeEntry),
-      },
-    );
+    entityGroup: EntityGroup,
+    clockifyEntity: CreatedEntity,
+  ): Promise<void> {
+    const endpoint =
+      entityGroup === EntityGroup.Clients ? entityGroup : `${entityGroup}/`;
+    await this.makeApiRequest(`/workspaces/${workspace.id}/${endpoint}`, {
+      method: 'POST',
+      body: JSON.stringify(clockifyEntity),
+    });
   }
 
   /**
    * Pauses execution for the specified number of seconds.
-   * @param seconds Number of seconds to pause for.
+   * @param [seconds=1] Number of seconds to pause for.
    */
-  private pause(seconds: number): Promise<void> {
-    console.log(chalk.yellow(`Pausing for ${seconds} seconds...`));
+  private pause(seconds: number = 1): Promise<void> {
     return new Promise(resolve => {
       setTimeout(() => {
         resolve();
@@ -103,7 +123,7 @@ export default class Clockify {
    * @param workspace Workspace containing time entries.
    * @param newClockifyTimeEntries Clockify entries to create.
    */
-  private async *createEntryBatch(
+  private async *createTimeEntryBatchIterable(
     workspace: GeneralWorkspace,
     newClockifyTimeEntries: ClockifyTimeEntryRequest[],
   ) {
@@ -119,14 +139,16 @@ export default class Clockify {
       let batchEntries = drop([...newClockifyTimeEntries], recordsStart);
       batchEntries = take(batchEntries, BATCH_STEP);
 
-      console.log(
-        chalk.cyan(
-          `Creating batch for records ${recordsStart} - ${recordsEnd}...`,
-        ),
+      this.printStatus(
+        `Creating time entries for records ${recordsStart} - ${recordsEnd}...`,
       );
       await Promise.all(
         batchEntries.map(clockifyEntry =>
-          this.createNewClockifyTimeEntry(workspace, clockifyEntry),
+          this.createClockifyEntity<ClockifyTimeEntryRequest>(
+            workspace,
+            EntityGroup.TimeEntries,
+            clockifyEntry,
+          ),
         ),
       );
 
@@ -147,19 +169,30 @@ export default class Clockify {
   ): ClockifyTimeEntryRequest[] {
     const togglTimeEntries = get(
       this.togglData,
-      [workspace.name, 'timeEntries'],
+      [workspace.name, EntityGroup.TimeEntries],
       [],
     );
+
+    const findTagIdsForEntry = (togglEntry: TogglTimeEntry) => {
+      const { tags } = togglEntry;
+      if (tags.length === 0) return [];
+      const tagIds = tags.map(tagName =>
+        get(this.entityGroupsByName, [EntityGroup.Tags, tagName], ''),
+      );
+      return tagIds.filter(tagId => tagId.length > 0);
+    };
 
     const newClockifyEntries = togglTimeEntries.map(
       (togglEntry: TogglTimeEntry) => ({
         start: new Date(togglEntry.start),
         end: new Date(togglEntry.end),
         description: togglEntry.description,
-        billable: togglEntry.is_billable.toString(),
-        projectId: this.projectsByName[togglEntry.project],
-        taskId: '',
-        tagIds: [],
+        billable: togglEntry.is_billable,
+        projectId: get(this.entityGroupsByName, [
+          EntityGroup.Projects,
+          togglEntry.project,
+        ]),
+        tagIds: findTagIdsForEntry(togglEntry),
       }),
     );
 
@@ -180,7 +213,7 @@ export default class Clockify {
     this.batchIndex = 0;
     const batchCount = Math.ceil(validEntries.length / BATCH_STEP);
 
-    for await (const newBatchIndex of this.createEntryBatch(
+    for await (const newBatchIndex of this.createTimeEntryBatchIterable(
       workspace,
       validEntries,
     )) {
@@ -190,18 +223,22 @@ export default class Clockify {
   }
 
   /**
-   * Get Clockify projects from API and assign map of IDs by project name to
-   *    the projectsByName property.
-   * @param workspace Workspace containing projects.
+   * Get Clockify entities from API and assign map of IDs by name to
+   *    the entitiesByName property.
+   * @param workspace Workspace containing entities.
+   * @param entityGroup Entity type to get.
    */
-  private async loadClockifyProjectsByName(
+  private async loadClockifyEntitiesByName(
     workspace: GeneralWorkspace,
+    entityGroup: EntityGroup,
   ): Promise<void> {
+    const queryString =
+      entityGroup === EntityGroup.Projects ? '?limit=200' : '';
     const results = await this.makeApiRequest(
-      `/workspaces/${workspace.id}/projects/?limit=200`,
+      `/workspaces/${workspace.id}/${entityGroup}/${queryString}`,
     );
-    this.projectsByName = results.reduce(
-      (acc, { id, name }: ClockifyProjectResponse) => ({
+    this.entityGroupsByName[entityGroup] = results.reduce(
+      (acc, { id, name }: EntityRecord) => ({
         ...acc,
         [name]: id,
       }),
@@ -209,19 +246,81 @@ export default class Clockify {
     );
   }
 
-  /**
-   * Submit request to Clockify API to create a new project.
-   * @param workspace Workspace containing project.
-   * @param clockifyProject Details for Clockify project to create.
-   */
-  private async createClockifyProjectRequest(
+  private async *createClockifyEntityIterable<CreateEntityType>(
     workspace: GeneralWorkspace,
-    clockifyProject: ClockifyProjectRequest,
+    entityGroup: EntityGroup,
+    newClockifyEntities: CreateEntityType,
+  ) {
+    while (true as any) {
+      this.createClockifyEntity<CreateEntityType>(
+        workspace,
+        entityGroup,
+        newClockifyEntities[this.entityIndex],
+      );
+      await this.pause();
+      yield this.entityIndex + 1;
+    }
+  }
+
+  /**
+   * Creates Clockify entities matching Toggl entities for the corresponding
+   *    workspace and entity group.
+   * @param workspace Workspace containing entities.
+   * @param entityGroup Entity group representing items to create.
+   * @param recordBuilder Function used to build array of valid records.
+   */
+  private async transferEntitiesFromToggl<CreateEntityType>(
+    workspace: GeneralWorkspace,
+    entityGroup: EntityGroup,
+    recordBuilder: any,
   ): Promise<void> {
-    await this.makeApiRequest(`/workspaces/${workspace.id}/projects/`, {
-      method: 'POST',
-      body: JSON.stringify(clockifyProject),
-    });
+    const clockifyEntityNames = Object.keys(
+      this.entityGroupsByName[entityGroup],
+    );
+
+    const togglEntityRecords = get(
+      this.togglData,
+      [workspace.name, entityGroup],
+      [],
+    );
+
+    // Only create entities on Clockify that don't already exist:
+    const entitiesToCreate = togglEntityRecords.filter(
+      ({ name }) => !clockifyEntityNames.includes(name),
+    );
+    if (entitiesToCreate.length === 0) return Promise.resolve();
+
+    // Build array of valid Clockify entities (for API request):
+    const newClockifyEntities = entitiesToCreate.map(recordBuilder);
+
+    for await (const newEntityIndex of this.createClockifyEntityIterable(
+      workspace,
+      entityGroup,
+      newClockifyEntities,
+    )) {
+      const entityName = newClockifyEntities[this.entityIndex].name;
+      this.printStatus(`Creating ${entityName} in ${workspace.name}...`);
+
+      this.entityIndex = newEntityIndex;
+      if (newEntityIndex === newClockifyEntities.length) {
+        this.entityIndex = 0;
+        break;
+      }
+    }
+
+    await this.loadClockifyEntitiesByName(workspace, entityGroup);
+  }
+
+  private async transferTagsFromToggl(
+    workspace: GeneralWorkspace,
+  ): Promise<void> {
+    this.entityIndex = 0;
+
+    await this.transferEntitiesFromToggl<{ name: string }>(
+      workspace,
+      EntityGroup.Tags,
+      ({ name }: { name: string }) => ({ name }),
+    );
   }
 
   /**
@@ -232,102 +331,239 @@ export default class Clockify {
   private async transferProjectsFromToggl(
     workspace: GeneralWorkspace,
   ): Promise<void> {
-    const clockifyProjectNames = Object.keys(this.projectsByName);
-    const togglProjects = get(this.togglData, [workspace.name, 'projects'], []);
+    const getClientIdForProject = (togglProject: TogglProject) => {
+      const { Clients } = EntityGroup;
+      const togglClients = get(this.togglData, [workspace.name, Clients], []);
+      const projectClient = togglClients.find(
+        togglClient => togglClient.id === togglProject.cid,
+      );
 
-    // Only create projects on Clockify that don't already exist:
-    const projectsToCreate = togglProjects.filter(
-      ({ name }) => !clockifyProjectNames.includes(name),
-    );
-    if (projectsToCreate.length === 0) return Promise.resolve();
+      if (!projectClient) return '';
+      return get(this.entityGroupsByName, [Clients, projectClient.name], '');
+    };
 
-    // Build array of valid Clockify projects (for API request):
-    const newClockifyProjects = projectsToCreate.map(
+    this.entityIndex = 0;
+
+    await this.transferEntitiesFromToggl<ClockifyProjectRequest>(
+      workspace,
+      EntityGroup.Projects,
       (togglProject: TogglProject) => ({
         name: togglProject.name,
-        clientId: '',
+        clientId: getClientIdForProject(togglProject),
         isPublic: false,
-        estimate: '0',
+        estimate: 0,
         color: togglProject.hex_color,
-        billable: togglProject.billable.toString(),
+        billable: togglProject.billable,
       }),
     );
+  }
 
-    await Promise.all(
-      newClockifyProjects.map((clockifyProject: ClockifyProjectRequest) =>
-        this.createClockifyProjectRequest(workspace, clockifyProject),
-      ),
+  private async transferClientsFromToggl(
+    workspace: GeneralWorkspace,
+  ): Promise<void> {
+    this.entityIndex = 0;
+
+    await this.transferEntitiesFromToggl<{ name: string }>(
+      workspace,
+      EntityGroup.Clients,
+      ({ name }: TogglClient) => ({ name }),
     );
-    await this.loadClockifyProjectsByName(workspace);
   }
 
   /**
-   * Transfers Toggl projects and entries to Clockify.
-   * @param workspace Workspace containing projects/time entries.
+   * Transfers Toggl clients, projects, and time entries to Clockify.
+   * @param workspace Workspace to create data in.
    */
   private async transferTogglDataToClockifyWorkspace(
     workspace: GeneralWorkspace,
   ): Promise<void> {
-    await this.loadClockifyProjectsByName(workspace);
+    const wsName = workspace.name;
+    this.printStatus(`Getting clients for ${wsName}...`);
+    await this.loadClockifyEntitiesByName(workspace, EntityGroup.Clients);
+    await this.pause();
+
+    this.printStatus(`Getting projects for ${wsName}...`);
+    await this.loadClockifyEntitiesByName(workspace, EntityGroup.Projects);
+    await this.pause();
+
+    this.printStatus(`Getting tags for ${wsName}...`);
+    await this.loadClockifyEntitiesByName(workspace, EntityGroup.Tags);
+    await this.pause();
+
+    this.printStatus(`Transferring clients to Clockify in ${wsName}...`);
+    await this.transferClientsFromToggl(workspace);
+    await this.pause();
+
+    this.printStatus(`Transferring projects to Clockify in ${wsName}...`);
     await this.transferProjectsFromToggl(workspace);
+    await this.pause();
+
+    this.printStatus(`Transferring tags to Clockify in ${wsName}...`);
+    await this.transferTagsFromToggl(workspace);
+    await this.pause();
+
+    this.printStatus(`Transferring time entries to Clockify in ${wsName}...`);
     await this.transferTimeEntriesFromToggl(workspace);
+  }
+
+  private async *transferWorkspaceDataIterable(workspaces: GeneralWorkspace[]) {
+    while (true as any) {
+      await this.transferTogglDataToClockifyWorkspace(
+        workspaces[this.workspaceIndex],
+      );
+      await this.pause();
+      yield this.workspaceIndex + 1;
+    }
   }
 
   /**
    * Returns the Clockify workspaces. If they don't match the name of the
    *    Toggl workspaces, the entries won't be created on Clockify.
+   * @param limitToConfig Indicates if workspaces should be limited to
+   *    workspaces specified in the config file.
    */
-  private async getWorkspaces(): Promise<GeneralWorkspace[]> {
+  private async getWorkspaces(
+    limitToConfig: boolean,
+  ): Promise<GeneralWorkspace[]> {
+    this.printStatus('Fetching workspaces from Clockify...');
     const results = await this.makeApiRequest('/workspaces/');
-    return results.map(({ id, name }) => ({ id, name }));
+
+    // Only return workspaces specified in config file:
+    return results.reduce((acc, { id, name }: WorkspaceResponse) => {
+      if (limitToConfig) {
+        const configWorkspace = find(this.config.workspaces, {
+          name,
+        });
+        if (!configWorkspace) return acc;
+      }
+
+      return [
+        ...acc,
+        {
+          id,
+          name,
+        },
+      ];
+    }, []);
+  }
+
+  private validateWorkspaces(workspaces: GeneralWorkspace[]) {
+    if (workspaces.length === 0) {
+      const message = [
+        'No workspaces matching your config file were found',
+        'Check your configuration file to ensure you specified workspaces',
+        'Refer to the README file for additional details',
+      ].join('\n');
+      console.log(chalk.red(message));
+      return false;
+    }
+    return true;
   }
 
   /**
    * Populate the private `togglData` variable with the contents of the JSON
    *    file created in the Toggl class.
+   * @param togglJsonPath Path to the toggl.json path containing data.
    */
-  private async loadTogglDataFromJson(): Promise<void> {
-    const jsonFile = new JsonFile('toggl.json');
+  private async loadTogglDataFromJson(togglJsonPath: string): Promise<void> {
+    const jsonFile = new JsonFile(togglJsonPath);
     this.togglData = (await jsonFile.read()) as TogglData;
+  }
+
+  /**
+   * Pulls the data in from the `toggl.json` file, creates valid Clockify time
+   *    entries from the results, and submits the new entries to the Clockify
+   *    API for each workspace.
+   * @param togglJsonPath Path to the toggl.json path containing data.
+   */
+  public async transferAllDataFromToggl(togglJsonPath: string): Promise<void> {
+    await this.loadTogglDataFromJson(togglJsonPath);
+    const workspaces = await this.getWorkspaces(true);
+    if (!this.validateWorkspaces(workspaces)) return Promise.resolve();
+
+    this.workspaceIndex = 0;
+    for await (const newWorkspaceIndex of this.transferWorkspaceDataIterable(
+      workspaces,
+    )) {
+      this.workspaceIndex = newWorkspaceIndex;
+      if (newWorkspaceIndex === workspaces.length) break;
+    }
+
+    console.log(chalk.green('Clockify processing complete'));
+  }
+
+  /**
+   * Fetches time entries from the Clockify API for the specified workspace.
+   * @param workspace Workspace to fetch data for.
+   */
+  private async getTimeEntriesInWorkspace(
+    workspace: GeneralWorkspace,
+  ): Promise<Partial<ClockifyTimeEntryResponse>[]> {
+    this.printStatus(`Fetching time entries for ${workspace.name}...`);
+    const timeEntries = await this.makeApiRequest(
+      `/workspaces/${workspace.id}/projects/`,
+    );
+
+    return timeEntries.map(({ user, project, timeInterval, ...rest }) => ({
+      ...rest,
+      ...timeInterval,
+    }));
+  }
+
+  /**
+   * Fetches projects from the Clockify API for the specified workspace.
+   * @param workspace Workspace to fetch data for.
+   */
+  private async getProjectsInWorkspace(
+    workspace: GeneralWorkspace,
+  ): Promise<Partial<ClockifyProjectResponse>[]> {
+    this.printStatus(`Fetching projects for ${workspace.name}...`);
+    const projects = await this.makeApiRequest(
+      `/workspaces/${workspace.id}/projects/`,
+    );
+    return projects.map(({ memberships, ...rest }) => rest);
+  }
+
+  /**
+   * Fetches clients from the Clockify API for the specified workspace.
+   * @param workspace Workspace to fetch data for.
+   */
+  private async getClientsInWorkspace(
+    workspace: GeneralWorkspace,
+  ): Promise<ClockifyClientResponse[]> {
+    this.printStatus(`Fetching clients for ${workspace.name}...`);
+    return await this.makeApiRequest(`/workspaces/${workspace.id}/clients/`);
   }
 
   /**
    * Fetches Clockfify projects and time entries for specified workspace from
    *    API, removes unneeded fields, and returns object with entities and
    *    workspace name.
-   * @param workspace Workspace containing projects/time entries.
+   * @param workspace Workspace to fetch data for.
    */
   private async getClockifyDataForWorkspace(workspace: GeneralWorkspace) {
-    const projectsFromApi = await this.makeApiRequest(
-      `/workspaces/${workspace.id}/projects/`,
-    );
-    const timeEntriesFromApi = await this.makeApiRequest(
-      `/workspaces/${workspace.id}/timeEntries/`,
-    );
-    const projects = projectsFromApi.map(({ memberships, ...rest }) => rest);
-    const timeEntries = timeEntriesFromApi.map(
-      ({ user, project, timeInterval, ...rest }) => ({
-        ...rest,
-        ...timeInterval,
-      }),
-    );
+    const clients = await this.getClientsInWorkspace(workspace);
+    await this.pause(2);
+    const projects = await this.getProjectsInWorkspace(workspace);
+    await this.pause(2);
+    const timeEntries = await this.getTimeEntriesInWorkspace(workspace);
 
     return {
+      workspaceName: workspace.name,
+      clients,
       projects,
       timeEntries,
-      workspaceName: workspace.name,
     };
   }
 
   /**
    * Fetches projects and time entries from Clockify API and writes to
-   *    /data/clockify.json. This is used for reference only and not required
+   *    specified path. This is used for reference only and not required
    *    to transfer data to Toggl (which is why there is no accommodation for
    *    rate limiting).
    */
   public async writeDataToJson(targetPath: string): Promise<void> {
-    console.log(chalk.cyan('Fetching workspaces from Clockify...'));
-    const workspaces = await this.getWorkspaces();
+    const workspaces = await this.getWorkspaces(false);
     const entitiesByWorkspace = await Promise.all(
       workspaces.map(workspace => this.getClockifyDataForWorkspace(workspace)),
     );
@@ -339,25 +575,9 @@ export default class Clockify {
       {},
     );
 
-    console.log(chalk.cyan('Writing Clockify data to JSON file...'));
+    this.printStatus('Writing Clockify data to JSON file...');
     const jsonFile = new JsonFile(targetPath);
     await jsonFile.write(dataToWrite);
-    console.log(chalk.green('Clockify processing complete'));
-  }
-
-  /**
-   * Pulls the data in from the `toggl.json` file, creates valid Clockify time
-   *    entries from the results, and submits the new entries to the Clockify
-   *    API for each workspace.
-   */
-  public async transferAllDataFromToggl(): Promise<void> {
-    await this.loadTogglDataFromJson();
-    const workspaces = await this.getWorkspaces();
-    await Promise.all(
-      workspaces.map(workspace =>
-        this.transferTogglDataToClockifyWorkspace(workspace),
-      ),
-    );
     console.log(chalk.green('Clockify processing complete'));
   }
 }

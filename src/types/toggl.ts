@@ -17,6 +17,16 @@ export interface WorkspaceResponse {
   ical_enabled: boolean;
 }
 
+export interface ClientResponse {
+  id: number;
+  wid: number;
+  name: string;
+  at: string;
+  notes: string;
+  hrate: number;
+  cur: string;
+}
+
 export interface ProjectResponse {
   id: number;
   wid: number;
@@ -58,8 +68,10 @@ export interface TimeEntryResponse {
 }
 
 export interface WorkspaceEntities {
+  clients: ClientResponse[];
   projects: ProjectResponse[];
   timeEntries: TimeEntryResponse[];
+  tags: { id: string; name: string }[];
 }
 
 export type TogglData = {

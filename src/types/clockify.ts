@@ -38,12 +38,9 @@ export interface MembershipDto {
   userId: string;
 }
 
-interface WithName {
-  name: string;
-}
-
-interface AuthBase extends WithName {
+interface AuthBase {
   id: string;
+  name: string;
   refreshToken: string;
   status: UserStatus;
   token: string;
@@ -56,30 +53,34 @@ export interface AuthDto extends AuthBase {
   roles: UserRole[];
 }
 
-interface WithEmail {
+export interface AuthResponse extends AuthBase {
   email: string;
-}
-
-export interface AuthResponse extends AuthBase, WithEmail {
   isNew: boolean;
   membership: MembershipDto[];
   new: boolean;
 }
 
-export interface AuthenticationRequest extends WithEmail {
+export interface AuthenticationRequest {
+  email: string;
   password: string;
 }
 
-export type ChangeEmailRequest = WithEmail;
+export type ChangeEmailRequest = {
+  email: string;
+};
 
-export interface ClientDto extends WithName {
+export interface ClientDto {
   id: string;
+  name: string;
   workspaceId: string;
 }
 
-export type ClientRequest = WithName;
+export type ClientRequest = {
+  name: string;
+};
 
-export interface CreateProjectRequest extends WithName {
+export interface CreateProjectRequest {
+  name: string;
   clientId: string;
   isPublic: boolean;
   estimate: string;
@@ -102,9 +103,13 @@ export interface CreateTimeEntryRequest extends TimePeriod {
 
 export type TimeEntryStartEndRequest = TimePeriod;
 
-export type CreateUserGroupRequest = WithName;
+export type CreateUserGroupRequest = {
+  name: string;
+};
 
-export type CreateWorkspaceRequest = WithName;
+export type CreateWorkspaceRequest = {
+  name: string;
+};
 
 export enum EstimateType {
   Auto = 'AUTO',
@@ -154,13 +159,15 @@ export interface InvitationDto {
   workspaceName: string;
 }
 
-export interface InvitedUserDto extends WithEmail {
+export interface InvitedUserDto {
   id: string;
+  email: string;
   invitation: InvitationDto;
   memberships: MembershipDto[];
 }
 
-export interface ProjectDtoImpl extends WithName {
+export interface ProjectDtoImpl {
+  name: string;
   archived: boolean;
   billable: boolean;
   clientId: string;
@@ -187,7 +194,8 @@ export enum ReportType {
   Weekly = 'WEEKLY',
 }
 
-interface ReportBase extends WithName, TimePeriod {
+interface ReportBase extends TimePeriod {
+  name: string;
   archived: string;
   billable: string;
   clientIds: string[];
@@ -262,22 +270,26 @@ export interface SummaryReportSettingsDto {
   subgroup: string;
 }
 
-export interface TagDto extends WithName {
+export interface TagDto {
   id: string;
+  name: string;
   workspaceId: string;
 }
 
-export type TagRequest = WithName;
+export type TagRequest = {
+  name: string;
+};
 
 export enum TaskStatus {
   Active = 'ACTIVE',
   Done = 'DONE',
 }
 
-export interface TaskDto extends WithName {
+export interface TaskDto {
+  id: string;
+  name: string;
   assigneeId: string;
   estimate: string;
-  id: string;
   projectId: string;
   status: TaskStatus;
 }
@@ -321,7 +333,8 @@ export interface TimeIntervalDto extends TimePeriod {
   duration: string;
 }
 
-export interface UpdateProjectRequest extends WithName {
+export interface UpdateProjectRequest {
+  name: string;
   hourlyRate: HourlyRateRequest;
   clientId: string;
   billable: boolean;
@@ -330,7 +343,8 @@ export interface UpdateProjectRequest extends WithName {
   color: string;
 }
 
-export interface UpdateReportRequest extends WithName {
+export interface UpdateReportRequest {
+  name: string;
   isPublic: boolean;
   visibleToUserGroup: string;
 }
@@ -345,15 +359,19 @@ export interface UpdateTimeEntryRequest extends TimePeriod {
   tagIds: string[];
 }
 
-export type UpdateUserGroupNameRequest = WithName;
+export type UpdateUserGroupNameRequest = {
+  name: string;
+};
 
-export interface UpdateUserSettingsRequest extends WithName {
+export interface UpdateUserSettingsRequest {
+  name: string;
   profilePictureUrl: string;
   settings: UserSettingsDto;
   profilePicture: string;
 }
 
-export interface UpdateWorkspaceRequest extends WithName {
+export interface UpdateWorkspaceRequest {
+  name: string;
   hourlyRate: HourlyRateRequest;
   workspaceSettings: UpdateWorkspaceSettingsRequest;
   imageUrl: string;
@@ -398,8 +416,9 @@ export interface UserDto {
   status: UserStatus;
 }
 
-export interface UserGroupDto extends WithName {
+export interface UserGroupDto {
   id: string;
+  name: string;
   userIds: string[];
   workspaceId: string;
 }
@@ -427,9 +446,10 @@ export interface UserSettingsDto {
   weeklyUpdates: boolean;
 }
 
-export interface WorkspaceDto extends WithName {
-  hourlyRate: HourlyRateDto;
+export interface WorkspaceDto {
   id: string;
+  name: string;
+  hourlyRate: HourlyRateDto;
   imageUrl: string;
   memberships: MembershipDto[];
   workspaceSettings: WorkspaceSettingsDto;

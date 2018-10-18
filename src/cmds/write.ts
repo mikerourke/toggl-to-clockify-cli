@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import Config from '../utils/Config';
 import Clockify from '../tools/Clockify';
 import Toggl from '../tools/Toggl';
+import { commonOptions, validateConfigFile } from '../utils/commandUtils';
 import JsonFile from '../utils/JsonFile';
 import { ToolName } from '../types/common';
 
@@ -23,11 +23,7 @@ export const builder = yargs => {
         describe:
           'Output path for the JSON file. If not specified, defaults to working directory',
       },
-      config: {
-        alias: 'c',
-        describe:
-          'Path to configuration file. Defaults to searching for "t2c.json" in working directory',
-      },
+      ...commonOptions,
     })
     .help()
     .alias('help', 'h');
@@ -41,12 +37,7 @@ interface Parameters {
 
 export const handler = (parameters: Parameters) => {
   const { source, output, config } = parameters;
-  const configFilePath = Config.validateFilePath(config);
-  if (configFilePath === null) {
-    console.log(chalk.red('You must specify a valid config file path'));
-    process.exit();
-    return;
-  }
+  const configFilePath = validateConfigFile(config);
 
   const outputPath = JsonFile.validatePath(source, output);
   if (outputPath === null) {
