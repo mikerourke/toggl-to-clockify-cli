@@ -10,7 +10,8 @@
     "precompile": "rimraf ./lib",
     "compile": "tsc",
     "lint": "tslint -c tslint.json \"src/**/*.ts\"",
-    "prettier": "prettier --write \"src/**/*.ts\""
+    "prettier": "prettier --write \"src/**/*.ts\"",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s"
   },
   "bin": {
     "toggl-to-clockify": "./bin/toggl-to-clockify.js"
@@ -30,10 +31,10 @@
     "yargs": "^12.0.2"
   },
   "devDependencies": {
-    "@types/config": "^0.0.34",
     "@types/lodash": "^4.14.116",
     "@types/node": "^10.9.4",
     "@types/node-fetch": "^2.1.2",
+    "conventional-changelog-cli": "^2.0.5",
     "prettier": "^1.14.2",
     "rimraf": "^2.6.2",
     "tslint": "^5.11.0",
