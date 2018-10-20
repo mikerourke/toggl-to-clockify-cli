@@ -13,7 +13,6 @@ export const validateConfigFile = (configPath?: string): string => {
   const configFilePath = ConfigFile.validateFilePath(configPath);
   if (configFilePath === null) {
     console.log(chalk.red('You must specify a valid config file path'));
-    process.exit();
     return '';
   }
   return configFilePath;

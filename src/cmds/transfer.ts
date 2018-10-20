@@ -24,6 +24,7 @@ interface Parameters {
 export const handler = (parameters: Parameters) => {
   const { config } = parameters;
   const configFilePath = validateConfigFile(config);
+  if (configFilePath === '') process.exit();
   const togglOutputPath = path.resolve(process.cwd(), 'toggl.json');
 
   const toggl = new Toggl(configFilePath);
