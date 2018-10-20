@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`The ConfigFile class the generateFile() method file contents matches its snapshot 1`] = `
+Object {
+  "clockifyApiToken": "",
+  "email": "",
+  "togglApiToken": "",
+  "workspaces": Array [],
+}
+`;
+
+exports[`The ConfigFile class the loadEntriesFromFile() method matches its snapshot when the config file doesn't exist 1`] = `
+Object {
+  "clockifyApiToken": "",
+  "email": "",
+  "togglApiToken": "",
+  "workspaces": Array [],
+}
+`;
+
+exports[`The ConfigFile class the loadEntriesFromFile() method matches its snapshot when the config file is valid 1`] = `
+Object {
+  "clockifyApiToken": "clockify123abc",
+  "email": "testing@test.com",
+  "togglApiToken": "toggl123abc",
+  "workspaces": Array [
+    Object {
+      "name": "Test WS 1",
+      "years": Array [
+        2017,
+        2018,
+      ],
+    },
+    Object {
+      "name": "Test WS 2",
+      "years": Array [
+        2017,
+        2018,
+      ],
+    },
+  ],
+}
+`;

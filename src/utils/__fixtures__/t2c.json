@@ -1,0 +1,21 @@
+{
+  "email": "testing@test.com",
+  "togglApiToken": "toggl123abc",
+  "clockifyApiToken": "clockify123abc",
+  "workspaces": [
+    {
+      "name": "Test WS 1",
+      "years": [
+        2017,
+        2018
+      ]
+    },
+    {
+      "name": "Test WS 2",
+      "years": [
+        2017,
+        2018
+      ]
+    }
+  ]
+}
