@@ -1,4 +1,4 @@
-# Toggle to Clockify
+# Toggl to Clockify
 
 CLI tool to load Toggl data into Clockify.
 
