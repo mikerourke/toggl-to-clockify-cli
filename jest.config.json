@@ -1,0 +1,37 @@
+{
+  "noStackTrace": true,
+  "roots": [
+    "<rootDir>/src/"
+  ],
+  "collectCoverageFrom": [
+    "src/**/*.ts"
+  ],
+  "coveragePathIgnorePatterns": [
+    "/node_modules/",
+    "<rootDir>/src/typings"
+  ],
+  "testMatch": [
+    "<rootDir>/src/**/__tests__/**/*.ts",
+    "<rootDir>/src/**/?(*.)(spec|test).ts"
+  ],
+  "testEnvironment": "node",
+  "testURL": "http://localhost",
+  "transform": {
+    "^.+\\.(ts|tsx)$": "<rootDir>/node_modules/ts-jest"
+  },
+  "transformIgnorePatterns": [
+    "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|ts|tsx)$"
+  ],
+  "moduleFileExtensions": [
+    "web.js",
+    "js",
+    "json",
+    "web.jsx",
+    "jsx",
+    "node",
+    "web.ts",
+    "ts",
+    "web.tsx",
+    "tsx"
+  ]
+}
