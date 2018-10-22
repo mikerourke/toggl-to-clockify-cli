@@ -86,7 +86,7 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 ## Todo
 - [X] Publish to npm
 - [ ] Add comments to code
-- [ ] Add tests for `/utils`
+- [X] Add tests for `/utils`
 - [ ] Add tests for `/tools`
 - [ ] Add tests for `/cmds`
 - [ ] Add automatic CHANGELOG generation
