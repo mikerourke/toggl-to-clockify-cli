@@ -18,30 +18,38 @@ It creates these entities in Clockify if they don't already exist
 - If you're starting with a fresh Clockify account, you can always leave the workspace to delete all entries and recreate
 
 ## Installation
-- Install globally with `npm install -g toggl-to-clockify` or `yarn global add toggl-to-clockify`
+### npm
+```bash
+$ npm install -g toggl-to-clockify
+```
+
+### Yarn
+```bash
+yarn global add toggl-to-clockify
+```
 
 ## Prerequisites
 - [Toggl API token](https://github.com/toggl/toggl_api_docs#api-token)
 - [Clockify API key](https://clockify.github.io/clockify_api_docs/#authentication)
 
 ## Instructions
-1. Run the command `toggl-to-clockify init` with an optional output path using the `-o` flag to generate a configuration file
+- Run the command `toggl-to-clockify init` with an optional output path using the `-o` flag to generate a configuration file
   - If you don't specify `-o`, a new file named `t2c.json` will be placed in the current working directory
-2. Populate the `email`, `togglApiToken`, `clockifyApiToken` fields
-3. For the `workspaces` field, specify an array of objects that match this format:
-```json
-{
-  "name": "<Toggl Workspace Name>",
-  "years": [
-    2016,
-    2017
-  ]
-}
-```
-The `name` is the name of the Workspace from Toggl you wish to copy, the `years` is an array of years to include in the transfer
+- Populate the `email`, `togglApiToken`, `clockifyApiToken` fields
+- For the `workspaces` field, specify an array of objects that match this format:
+  ```json
+  {
+    "name": "<Toggl Workspace Name>",
+    "years": [
+      2016,
+      2017
+    ]
+  }
+  ```
+  <sub>Note: The `name` is the name of the Workspace from Toggl you wish to copy, the `years` is an array of years to include in the transfer</sub>
 
-4. Before initializing the transfer, you **must** create the workspaces on Clockify with the same name as Toggl (you can always change them later)
-5. Run the command `toggl-to-clockify transfer` to perform the transfer
+- Before initializing the transfer, you **must** create the workspaces on Clockify with the same name as Toggl (you can always change them later)
+- Run the command `toggl-to-clockify transfer` to perform the transfer
 
 ## Commands
 
@@ -67,7 +75,7 @@ Fetches data from API and writes a to JSON file, this is just for giggles, in ca
 #### Flags
 | Option     | Alias  | Req'd | Description                                                          |
 |------------|--------|-------|----------------------------------------------------------------------|
-| `--tool`   | `-t`   | Yes   | Tool to get data for ("toggl" or "clockify")                         |
+| `--tool`   | `-t`   | Yes   | Tool to get data for (`toggl` or `clockify`)                         |
 | `--config` | `-c`   | No    | Path to the populated configuration file                             |
 | `--output` | `-o`   | No    | Output path for the JSON file (default is current working directory) |
 
