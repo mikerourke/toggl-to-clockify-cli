@@ -1,0 +1,77 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`The Clockify class the writeDataToJson() method fetches all data and writes to file that matches snapshot 1`] = `
+Object {
+  "Testing": Object {
+    "clients": Array [
+      Object {
+        "id": "client-test-1",
+        "name": "Updated Client",
+        "workspaceId": "workspace-test",
+      },
+      Object {
+        "id": "client-test-2",
+        "name": "Test Client_1",
+        "workspaceId": "workspace-test",
+      },
+    ],
+    "projects": Array [
+      Object {
+        "archived": false,
+        "billable": true,
+        "client": null,
+        "clientId": "",
+        "color": "#f44336",
+        "estimate": Object {
+          "estimate": "PT0S",
+          "type": "AUTO",
+        },
+        "hourlyRate": null,
+        "id": "project-test",
+        "name": "Project One",
+        "public": false,
+        "tasks": Array [],
+        "workspaceId": "workspace-test",
+      },
+    ],
+    "timeEntries": Array [
+      Object {
+        "billable": false,
+        "description": "This is a test entry.",
+        "duration": "PT1H",
+        "end": "2018-09-11T15:30:45Z",
+        "hourlyRate": null,
+        "id": "entry-test-1",
+        "isLocked": false,
+        "projectId": "project-test",
+        "start": "2018-09-11T14:30:45Z",
+        "tags": null,
+        "task": null,
+        "totalBillable": null,
+        "workspaceId": "workspace-test",
+      },
+      Object {
+        "billable": false,
+        "description": "This is another test entry.",
+        "duration": "PT8H",
+        "end": "2018-09-10T04:00:00Z",
+        "hourlyRate": null,
+        "id": "entry-test-2",
+        "isLocked": false,
+        "projectId": "project-test",
+        "start": "2018-09-09T20:00:00Z",
+        "tags": Array [
+          Object {
+            "id": "tag-test",
+            "name": "javascript",
+            "workspaceId": "workspace-test",
+          },
+        ],
+        "task": null,
+        "totalBillable": null,
+        "workspaceId": "workspace-test",
+      },
+    ],
+  },
+}
+`;

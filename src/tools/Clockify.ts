@@ -20,6 +20,7 @@ import {
 } from '../types/toggl';
 
 // TypeScript polyfill for async iterator:
+/* istanbul ignore next */
 if (!(Symbol as any)['asyncIterator']) {
   (Symbol as any)['asyncIterator'] = Symbol();
 }
@@ -500,14 +501,18 @@ export default class Clockify {
     workspace: GeneralWorkspace,
   ): Promise<Partial<ClockifyTimeEntryResponse>[]> {
     this.printStatus(`Fetching time entries for ${workspace.name}...`);
-    const timeEntries = await this.makeApiRequest(
-      `/workspaces/${workspace.id}/projects/`,
-    );
+    try {
+      const timeEntries = await this.makeApiRequest(
+        `/workspaces/${workspace.id}/timeEntries/`,
+      );
 
-    return timeEntries.map(({ user, project, timeInterval, ...rest }) => ({
-      ...rest,
-      ...timeInterval,
-    }));
+      return timeEntries.map(({ user, project, timeInterval, ...rest }) => ({
+        ...rest,
+        ...timeInterval,
+      }));
+    } catch (error) {
+      return Promise.resolve([]);
+    }
   }
 
   /**
@@ -518,10 +523,14 @@ export default class Clockify {
     workspace: GeneralWorkspace,
   ): Promise<Partial<ClockifyProjectResponse>[]> {
     this.printStatus(`Fetching projects for ${workspace.name}...`);
-    const projects = await this.makeApiRequest(
-      `/workspaces/${workspace.id}/projects/`,
-    );
-    return projects.map(({ memberships, ...rest }) => rest);
+    try {
+      const projects = await this.makeApiRequest(
+        `/workspaces/${workspace.id}/projects/`,
+      );
+      return projects.map(({ memberships, ...rest }) => rest);
+    } catch (error) {
+      return Promise.resolve([]);
+    }
   }
 
   /**
@@ -532,7 +541,11 @@ export default class Clockify {
     workspace: GeneralWorkspace,
   ): Promise<ClockifyClientResponse[]> {
     this.printStatus(`Fetching clients for ${workspace.name}...`);
-    return await this.makeApiRequest(`/workspaces/${workspace.id}/clients/`);
+    try {
+      return await this.makeApiRequest(`/workspaces/${workspace.id}/clients/`);
+    } catch (error) {
+      return Promise.resolve([]);
+    }
   }
 
   /**

@@ -38,6 +38,7 @@ interface Parameters {
 export const handler = (parameters: Parameters) => {
   const { tool, output, config } = parameters;
   const configFilePath = validateConfigFile(config);
+  if (configFilePath === '') process.exit();
 
   const outputPath = JsonFile.validatePath(tool, output);
   if (outputPath === null) {

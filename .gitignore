@@ -75,4 +75,4 @@ typings/
 .serverless
 
 lib/
-t2c.json
+t2c.test.json
