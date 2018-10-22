@@ -24,32 +24,17 @@ export default class JsonFile {
   constructor(private filePath: string) {}
 
   public write(contents: any): Promise<void> {
-    return new Promise((resolve, reject) => {
-      jsonFile.writeFile(
-        this.filePath,
-        contents,
-        { spaces: 2 },
-        (error: Error | null) => {
-          if (error) return reject(error);
-          return resolve();
-        },
-      );
-    });
+    return jsonFile.writeFile(this.filePath, contents, { spaces: 2 });
   }
 
-  public async read(): Promise<any> {
+  public read(): Promise<any> {
     if (!fs.existsSync(this.filePath)) {
       return Promise.reject(
         new Error(`Could not find JSON file at ${this.filePath}`),
       );
     }
 
-    return new Promise((resolve, reject) => {
-      jsonFile.readFile(this.filePath, (error: Error | null, contents: any) => {
-        if (error) return reject(error);
-        return resolve(contents);
-      });
-    });
+    return jsonFile.readFile(this.filePath);
   }
 
   public readSync() {

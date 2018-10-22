@@ -8,7 +8,8 @@
   ],
   "coveragePathIgnorePatterns": [
     "/node_modules/",
-    "<rootDir>/src/typings"
+    "<rootDir>/src/typings",
+    "<rootDir>/src/types/"
   ],
   "testMatch": [
     "<rootDir>/src/**/__tests__/**/*.ts",
