@@ -11,6 +11,7 @@
     "<rootDir>/src/typings",
     "<rootDir>/src/types/"
   ],
+  "setupTestFrameworkScriptFile": "<rootDir>/config/setupJest.js",
   "testMatch": [
     "<rootDir>/src/**/__tests__/**/*.ts",
     "<rootDir>/src/**/?(*.)(spec|test).ts"

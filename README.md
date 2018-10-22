@@ -84,6 +84,9 @@ Fetches data from API and writes a to JSON file, this is just for giggles, in ca
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Todo
-- [X] Publish to NPM
+- [X] Publish to npm
 - [ ] Add comments to code
-- [ ] Add tests
+- [ ] Add tests for `/utils`
+- [ ] Add tests for `/tools`
+- [ ] Add tests for `/cmds`
+- [ ] Add automatic CHANGELOG generation
