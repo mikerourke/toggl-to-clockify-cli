@@ -4,7 +4,8 @@
     "module": "commonjs",
     "lib": [
       "es2016",
-      "es2017.object"
+      "es2017.object",
+      "esnext.asynciterable"
     ],
     "strict": true,
     "noImplicitAny": false,

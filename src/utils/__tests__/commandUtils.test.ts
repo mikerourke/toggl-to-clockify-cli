@@ -1,8 +1,12 @@
 import * as path from 'path';
-import * as fs from 'fs';
+import { execSync } from 'child_process';
+import * as jsonFile from 'jsonfile';
+import mock from 'mock-fs';
 import { validateConfigFile } from '../commandUtils';
 
 describe('The commandUtils file', () => {
+  const { configFixturePath } = testHelpers;
+
   describe(`the validateConfigFile() method`, () => {
     let consoleLog;
     let logMessage;
@@ -38,12 +42,95 @@ describe('The commandUtils file', () => {
       const testFileName = '__TEST__.json';
       const testFilePath = `${__dirname}/${testFileName}`;
 
-      fs.writeFileSync(testFilePath, '');
+      execSync(`rm -f ${testFilePath}`);
+
+      const validContents = jsonFile.readFileSync(configFixturePath);
+      jsonFile.writeFileSync(testFilePath, validContents);
       const result = validateConfigFile(testFilePath);
-      fs.unlinkSync(testFilePath);
+      execSync(`rm -f ${testFilePath}`);
 
       expect(path.dirname(result)).toEqual(__dirname);
       expect(path.basename(result)).toEqual(testFileName);
+    });
+
+    describe('for a file containing invalid contents', () => {
+      let configContents;
+
+      beforeEach(() => {
+        configContents = jsonFile.readFileSync(configFixturePath);
+      });
+
+      afterEach(() => {
+        mock.restore();
+      });
+
+      test(`returns an empty string if the workspaces array is empty`, () => {
+        const updatedContents = {
+          ...configContents,
+          workspaces: [],
+        };
+
+        mock({
+          [configFixturePath]: mock.file({
+            content: JSON.stringify(updatedContents),
+          }),
+        });
+
+        const result = validateConfigFile(configFixturePath);
+        expect(logMessage).toMatch('Your Workspace Name');
+        expect(result).toEqual('');
+      });
+
+      test(`returns an empty string if one of the workspaces has an invalid name`, () => {
+        const updatedContents = {
+          ...configContents,
+          workspaces: [{ name: '', years: [2018] }],
+        };
+
+        mock({
+          [configFixturePath]: mock.file({
+            content: JSON.stringify(updatedContents),
+          }),
+        });
+
+        const result = validateConfigFile(configFixturePath);
+        expect(logMessage).toMatch('invalid value for "name"');
+        expect(result).toEqual('');
+      });
+
+      test(`returns an empty string if one of the workspaces has an empty array for years`, () => {
+        const updatedContents = {
+          ...configContents,
+          workspaces: [{ name: 'Valid Name', years: [] }],
+        };
+
+        mock({
+          [configFixturePath]: mock.file({
+            content: JSON.stringify(updatedContents),
+          }),
+        });
+
+        const result = validateConfigFile(configFixturePath);
+        expect(logMessage).toMatch('missing a value for "years"');
+        expect(result).toEqual('');
+      });
+
+      test(`returns an empty string if one of the workspaces has a year in an invalid format`, () => {
+        const updatedContents = {
+          ...configContents,
+          workspaces: [{ name: 'Valid Name', years: [18] }],
+        };
+
+        mock({
+          [configFixturePath]: mock.file({
+            content: JSON.stringify(updatedContents),
+          }),
+        });
+
+        const result = validateConfigFile(configFixturePath);
+        expect(logMessage).toMatch('must be a four-digit number');
+        expect(result).toEqual('');
+      });
     });
   });
 });

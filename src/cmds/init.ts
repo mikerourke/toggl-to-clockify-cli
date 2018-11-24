@@ -38,7 +38,7 @@ export const handler = (parameters: Parameters) => {
 
   ConfigFile.generateFile(outputPath)
     .then(() => {
-      console.log(chalk.green('ConfigFile file successfully created'));
+      console.log(chalk.green('Configuration file successfully created'));
     })
     .catch(error => {
       console.log(chalk.red(`Error creating file: ${error.message}`));

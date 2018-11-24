@@ -19,12 +19,6 @@ import {
   WorkspaceResponse,
 } from '../types/toggl';
 
-// TypeScript polyfill for async iterator:
-/* istanbul ignore next */
-if (!(Symbol as any)['asyncIterator']) {
-  (Symbol as any)['asyncIterator'] = Symbol();
-}
-
 const BATCH_STEP = 25;
 
 interface EntityRecord {
@@ -449,16 +443,17 @@ export default class Clockify {
   }
 
   private validateWorkspaces(workspaces: GeneralWorkspace[]) {
-    if (workspaces.length === 0) {
-      const message = [
-        'No workspaces matching your config file were found',
-        'Check your configuration file to ensure you specified workspaces',
-        'Refer to the README file for additional details',
-      ].join('\n');
-      console.log(chalk.red(message));
-      return false;
-    }
-    return true;
+    if (workspaces.length > 0) return true;
+    const message = [
+      'No workspaces matching your configuration file were found!',
+      '\n',
+      'Check your configuration file to ensure you specified workspaces and ',
+      `that the "name" is an ${chalk.underline('exact')} match to Clockify`,
+      '\n',
+      'Refer to the README.md file for additional details',
+    ].join('');
+    console.log(chalk.red(message));
+    return false;
   }
 
   /**

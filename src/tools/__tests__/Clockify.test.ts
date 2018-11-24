@@ -130,14 +130,6 @@ const timeEntriesResponse = JSON.stringify([
 ]);
 
 describe('The Clockify class', () => {
-  const configFilePath = path.resolve(
-    process.cwd(),
-    'src',
-    'utils',
-    '__fixtures__',
-    't2c.json',
-  );
-
   describe('the writeDataToJson() method', () => {
     test('fetches all data and writes to file that matches snapshot', async () => {
       expect.assertions(1);
@@ -148,7 +140,7 @@ describe('The Clockify class', () => {
         .mockResponseOnce(timeEntriesResponse);
 
       const outputPath = `${__dirname}/test.json`;
-      const clockify = new Clockify(configFilePath);
+      const clockify = new Clockify(testHelpers.configFixturePath);
       await clockify.writeDataToJson(outputPath);
 
       const result = jsonFile.readFileSync(outputPath);

@@ -1,7 +1,7 @@
 import * as qs from 'querystring';
 import chalk from 'chalk';
 import { format, isSameYear, lastDayOfYear } from 'date-fns';
-import { find, flatten, reverse, sortBy, uniq } from 'lodash';
+import { flatten, get, isNil, reverse, sortBy, uniq } from 'lodash';
 import fetch from 'node-fetch';
 import ConfigFile from '../utils/ConfigFile';
 import JsonFile from '../utils/JsonFile';
@@ -21,11 +21,6 @@ enum ContextUrl {
 
 interface WorkspaceDetails extends WorkspaceEntities {
   workspaceName: string;
-}
-
-// TypeScript polyfill for async iterator:
-if (!(Symbol as any)['asyncIterator']) {
-  (Symbol as any)['asyncIterator'] = Symbol();
 }
 
 /**
@@ -321,11 +316,11 @@ export default class Toggl {
 
     // Only return workspaces specified in config file:
     return results.reduce((acc, { id, name }: WorkspaceResponse) => {
-      const configWorkspace = find(this.config.workspaces, {
-        name,
-      }) as GeneralWorkspace;
+      const configWorkspace = this.config.workspaces.find(
+        workspace => get(workspace, 'name', '') === name,
+      ) as GeneralWorkspace;
 
-      if (!configWorkspace) return acc;
+      if (isNil(configWorkspace)) return acc;
 
       return [
         ...acc,
@@ -338,6 +333,20 @@ export default class Toggl {
     }, []);
   }
 
+  private validateWorkspaces(workspaces: GeneralWorkspace[]) {
+    if (workspaces.length > 0) return true;
+    const message = [
+      'No workspaces matching your configuration file were found!',
+      '\n',
+      'Check your configuration file to ensure you specified workspaces and ',
+      `that the "name" is an ${chalk.underline('exact')} match to Toggl`,
+      '\n',
+      'Refer to the README.md file for additional details',
+    ].join('');
+    console.log(chalk.red(message));
+    return false;
+  }
+
   /**
    * Writes clients, projects, and time entries for all workspaces to the
    *    specified target path.
@@ -346,6 +355,8 @@ export default class Toggl {
   public async writeDataToJson(targetPath: string): Promise<void> {
     this.printStatus('Fetching workspaces from Toggl...');
     const workspaces = await this.getWorkspaces();
+    if (!this.validateWorkspaces(workspaces)) return Promise.resolve();
+
     const entitiesByWorkspace: any = [];
 
     this.workspaceIndex = 0;
