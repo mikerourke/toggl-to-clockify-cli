@@ -1,3 +1,19 @@
+<a name="0.1.4"></a>
+## [0.1.4](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.3...0.1.4) (2018-11-24)
+
+
+### Bug Fixes
+
+* add check for valid workspaces and additional ConfigFile validation ([e0700c3](https://github.com/mikerourke/toggl-to-clockify/commit/e0700c3))
+* fix incorrect endpoint for getting time entries in Clockify ([983d6e6](https://github.com/mikerourke/toggl-to-clockify/commit/983d6e6))
+
+
+### Features
+
+* **CHANGELOG:** generate CHANGELOG and add version details ([b7e852c](https://github.com/mikerourke/toggl-to-clockify/commit/b7e852c))
+
+
+
 <a name="0.1.3"></a>
 ## [0.1.3](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.2...0.1.3) (2018-10-22)
 
