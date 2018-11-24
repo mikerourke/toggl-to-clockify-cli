@@ -27,6 +27,15 @@ export default class ConfigFile {
 
   public static async generateFile(targetPath: string) {
     const configFile = new JsonFile(targetPath);
-    await configFile.write(defaultSettings);
+    const generatedContents = {
+      ...defaultSettings,
+      workspaces: [
+        {
+          name: '',
+          years: [],
+        },
+      ],
+    };
+    await configFile.write(generatedContents);
   }
 }

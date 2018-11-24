@@ -5,7 +5,12 @@ Object {
   "clockifyApiToken": "",
   "email": "",
   "togglApiToken": "",
-  "workspaces": Array [],
+  "workspaces": Array [
+    Object {
+      "name": "",
+      "years": Array [],
+    },
+  ],
 }
 `;
 
