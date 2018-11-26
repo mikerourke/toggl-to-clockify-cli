@@ -83,7 +83,7 @@ export interface CreateProjectRequest {
   name: string;
   clientId: string;
   isPublic: boolean;
-  estimate: string;
+  estimate: EstimateDto;
   color: string;
   billable: boolean;
 }

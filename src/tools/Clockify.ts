@@ -8,6 +8,7 @@ import {
   ClientDto as ClockifyClientResponse,
   CreateProjectRequest as ClockifyProjectRequest,
   CreateTimeEntryRequest as ClockifyTimeEntryRequest,
+  EstimateType,
   ProjectDtoImpl as ClockifyProjectResponse,
   TimeEntryFullDto as ClockifyTimeEntryResponse,
 } from '../types/clockify';
@@ -339,6 +340,8 @@ export default class Clockify {
 
     this.entityIndex = 0;
 
+    // TODO: Fix "estimate" field to reflect Toggl.
+    //       For now, changing it on Clockify shouldn't take too much work.
     await this.transferEntitiesFromToggl<ClockifyProjectRequest>(
       workspace,
       EntityGroup.Projects,
@@ -346,7 +349,10 @@ export default class Clockify {
         name: togglProject.name,
         clientId: getClientIdForProject(togglProject),
         isPublic: false,
-        estimate: 0,
+        estimate: {
+          estimate: 0,
+          type: EstimateType.Manual,
+        },
         color: togglProject.hex_color,
         billable: togglProject.billable,
       }),
