@@ -1,6 +1,6 @@
 {
   "name": "toggl-to-clockify",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Transfer Toggl time entries to Clockify.me.",
   "repository": "https://github.com/mikerourke/toggl-to-clockify.git",
   "author": "Mike Rourke <mike.w.rourke@gmail.com>",

@@ -1,3 +1,13 @@
+<a name="0.1.6"></a>
+## [0.1.6](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.5...0.1.6) (2018-11-26)
+
+
+### Bug Fixes
+
+* update Clockify project payload to address infinite loop issue ([bd552bc](https://github.com/mikerourke/toggl-to-clockify/commit/bd552bc))
+
+
+
 <a name="0.1.4"></a>
 ## [0.1.4](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.3...0.1.4) (2018-11-24)
 
