@@ -74,3 +74,20 @@ export const validateConfigFile = (configPath?: string): string => {
 
   return configFilePath;
 };
+
+export const validateNodeVersion = () => {
+  const currentVersion = process.version;
+  let isValid = true;
+  if (currentVersion) {
+    const parseableVersion = currentVersion.replace('v', '');
+    const [major, minor] = parseableVersion.split('.');
+    isValid = +major >= 10 && +minor >= 3;
+  }
+
+  if (!isValid) {
+    printError('You must be using Node.js v10.3 or greater');
+    printError(`Your current version, ${currentVersion}, won't work`);
+  }
+
+  return isValid;
+};

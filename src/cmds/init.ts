@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import ConfigFile from '../utils/ConfigFile';
 import JsonFile from '../utils/JsonFile';
+import { validateNodeVersion } from '../utils/commandUtils';
 
 export const command = 'init';
 export const alias = 'i';
@@ -26,6 +27,11 @@ interface Parameters {
 
 export const handler = (parameters: Parameters) => {
   const { output } = parameters;
+
+  if (!validateNodeVersion()) {
+    process.exit();
+    return;
+  }
 
   const outputPath = JsonFile.validatePath('t2c', output);
   if (outputPath === null) {

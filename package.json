@@ -11,6 +11,9 @@
   ],
   "license": "MIT",
   "private": false,
+  "engines": {
+    "node": ">=10.3"
+  },
   "scripts": {
     "precompile": "rimraf ./lib",
     "compile": "tsc --project tsconfig.prod.json",
