@@ -29,6 +29,7 @@ yarn global add toggl-to-clockify
 ```
 
 ## Prerequisites
+- **Node.js >= v10.3.0** (uses Async Iterators)
 - [Toggl API token](https://github.com/toggl/toggl_api_docs#api-token)
 - [Clockify API key](https://clockify.github.io/clockify_api_docs/#authentication)
 

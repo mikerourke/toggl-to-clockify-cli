@@ -1,6 +1,10 @@
 import * as path from 'path';
 import chalk from 'chalk';
-import { commonOptions, validateConfigFile } from '../utils/commandUtils';
+import {
+  commonOptions,
+  validateConfigFile,
+  validateNodeVersion,
+} from '../utils/commandUtils';
 import Toggl from '../tools/Toggl';
 import Clockify from '../tools/Clockify';
 
@@ -23,6 +27,11 @@ interface Parameters {
 
 export const handler = (parameters: Parameters) => {
   const { config } = parameters;
+  if (!validateNodeVersion()) {
+    process.exit();
+    return;
+  }
+
   const configFilePath = validateConfigFile(config);
   if (configFilePath === '') process.exit();
   const togglOutputPath = path.resolve(process.cwd(), 'toggl.json');
