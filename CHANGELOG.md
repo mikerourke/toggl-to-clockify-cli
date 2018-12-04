@@ -1,3 +1,13 @@
+<a name="0.1.7"></a>
+## [0.1.7](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.6...0.1.7) (2018-12-04)
+
+
+### Bug Fixes
+
+* add check for Node version to prevent errors if using < v10.3 ([db49d73](https://github.com/mikerourke/toggl-to-clockify/commit/db49d73))
+
+
+
 <a name="0.1.6"></a>
 ## [0.1.6](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.5...0.1.6) (2018-11-26)
 
