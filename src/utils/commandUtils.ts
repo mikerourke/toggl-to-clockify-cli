@@ -81,7 +81,7 @@ export const validateNodeVersion = () => {
   if (currentVersion) {
     const parseableVersion = currentVersion.replace('v', '');
     const [major, minor] = parseableVersion.split('.');
-    isValid = +major >= 10 && +minor >= 3;
+    isValid = +major >= 10 || (+major === 10 && +minor >= 3);
   }
 
   if (!isValid) {
