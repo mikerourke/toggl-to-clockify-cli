@@ -1,3 +1,11 @@
+<a name="0.1.8"></a>
+## [0.1.8](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.7...0.1.8) (2018-12-08)
+
+### Bug Fixes
+
+* fix currentVersion check for major version above 10 ([ec47227](https://github.com/mikerourke/toggl-to-clockify/commit/ec47227))
+
+
 <a name="0.1.7"></a>
 ## [0.1.7](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.6...0.1.7) (2018-12-04)
 
