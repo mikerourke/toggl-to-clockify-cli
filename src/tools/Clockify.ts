@@ -280,31 +280,38 @@ export default class Clockify {
       [],
     );
 
+    if (isNil(togglEntityRecords)) return Promise.resolve();
+
     // Only create entities on Clockify that don't already exist:
-    const entitiesToCreate = togglEntityRecords.filter(
-      ({ name }) => !clockifyEntityNames.includes(name),
-    );
-    if (entitiesToCreate.length === 0) return Promise.resolve();
+    try {
+      const entitiesToCreate = togglEntityRecords.filter(
+        ({ name }) => !clockifyEntityNames.includes(name),
+      );
+      if (entitiesToCreate.length === 0) return Promise.resolve();
 
-    // Build array of valid Clockify entities (for API request):
-    const newClockifyEntities = entitiesToCreate.map(recordBuilder);
+      // Build array of valid Clockify entities (for API request):
+      const newClockifyEntities = entitiesToCreate.map(recordBuilder);
 
-    for await (const newEntityIndex of this.createClockifyEntityIterable(
-      workspace,
-      entityGroup,
-      newClockifyEntities,
-    )) {
-      const entityName = newClockifyEntities[this.entityIndex].name;
-      this.printStatus(`Creating ${entityName} in ${workspace.name}...`);
+      for await (const newEntityIndex of this.createClockifyEntityIterable(
+        workspace,
+        entityGroup,
+        newClockifyEntities,
+      )) {
+        const entityName = newClockifyEntities[this.entityIndex].name;
+        this.printStatus(`Creating ${entityName} in ${workspace.name}...`);
 
-      this.entityIndex = newEntityIndex;
-      if (newEntityIndex === newClockifyEntities.length) {
-        this.entityIndex = 0;
-        break;
+        this.entityIndex = newEntityIndex;
+        if (newEntityIndex === newClockifyEntities.length) {
+          this.entityIndex = 0;
+          break;
+        }
       }
-    }
 
-    await this.loadClockifyEntitiesByName(workspace, entityGroup);
+      await this.loadClockifyEntitiesByName(workspace, entityGroup);
+    } catch (error) {
+      // TODO: Add better error handling.
+      return Promise.resolve();
+    }
   }
 
   private async transferTagsFromToggl(
