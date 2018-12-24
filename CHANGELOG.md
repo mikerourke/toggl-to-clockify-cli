@@ -1,3 +1,13 @@
+<a name="0.1.9"></a>
+## [0.1.9](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.8...0.1.9) (2018-12-24)
+
+
+### Bug Fixes
+
+* address unhandled Promise reject when transferring Clients ([ffb0c36](https://github.com/mikerourke/toggl-to-clockify/commit/ffb0c36))
+
+
+
 <a name="0.1.8"></a>
 ## [0.1.8](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.7...0.1.8) (2018-12-08)
 
