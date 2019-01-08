@@ -85,12 +85,11 @@ export default class Toggl {
    */
   private getDateRangesForYear(activeYear: number) {
     const now = new Date();
-    now.setFullYear(activeYear);
     const firstDayOfYear = new Date(activeYear, 0, 1);
 
     const untilDate = isSameYear(now, firstDayOfYear)
       ? now
-      : lastDayOfYear(now);
+      : lastDayOfYear(firstDayOfYear);
 
     return {
       since: format(firstDayOfYear, 'YYYY-MM-DD'),
