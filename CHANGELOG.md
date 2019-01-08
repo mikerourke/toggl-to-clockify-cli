@@ -1,6 +1,12 @@
+<a name="0.1.10"></a>
+## [0.1.10](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.9...0.1.10) (2019-01-08)
+
+### Bug Fixes
+
+* address issue with `isSameYear` returning an incorrect value ([9847efc](https://github.com/mikerourke/toggl-to-clockify/commit/9847efc))
+
 <a name="0.1.9"></a>
 ## [0.1.9](https://github.com/mikerourke/toggl-to-clockify/compare/0.1.8...0.1.9) (2018-12-24)
-
 
 ### Bug Fixes
 
