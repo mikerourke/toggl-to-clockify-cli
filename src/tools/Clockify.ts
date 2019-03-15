@@ -77,6 +77,10 @@ export default class Clockify {
     return await response.json();
   }
 
+  private printError(message: string) {
+    console.log(chalk.red(message));
+  }
+
   private printStatus(message: string) {
     console.log(chalk.cyan(message));
   }
@@ -94,10 +98,15 @@ export default class Clockify {
   ): Promise<void> {
     const endpoint =
       entityGroup === EntityGroup.Clients ? entityGroup : `${entityGroup}/`;
-    await this.makeApiRequest(`/workspaces/${workspace.id}/${endpoint}`, {
-      method: 'POST',
-      body: JSON.stringify(clockifyEntity),
-    });
+
+    try {
+      await this.makeApiRequest(`/workspaces/${workspace.id}/${endpoint}`, {
+        method: 'POST',
+        body: JSON.stringify(clockifyEntity),
+      });
+    } catch ({ message }) {
+      this.printError(`Error making API request to Clockify: ${message}`);
+    }
   }
 
   /**
@@ -228,11 +237,44 @@ export default class Clockify {
     workspace: GeneralWorkspace,
     entityGroup: EntityGroup,
   ): Promise<void> {
-    const queryString =
-      entityGroup === EntityGroup.Projects ? '?limit=200' : '';
-    const results = await this.makeApiRequest(
-      `/workspaces/${workspace.id}/${entityGroup}/${queryString}`,
-    );
+    let results = [];
+    try {
+      if (entityGroup === EntityGroup.Projects) {
+        const body = {
+          page: 0,
+          pageSize: 200,
+          search: '',
+          archived: false,
+          clientIds: [],
+          userFilterIds: [],
+          sortOrder: 'ASCENDING',
+          sortColumn: 'name',
+          billable: null,
+        };
+        const response = await this.makeApiRequest(
+          `/workspaces/${workspace.id}/projects/filtered`,
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          },
+        );
+        results = get(response, 'project', []);
+      } else {
+        results = await this.makeApiRequest(
+          `/workspaces/${workspace.id}/${entityGroup}/`,
+        );
+      }
+    } catch ({ message }) {
+      this.printError(
+        `Error fetching ${entityGroup} from Clockify: ${message}`,
+      );
+    }
+
+    if (!results || results.length === 0) {
+      this.entityGroupsByName[entityGroup] = {};
+      return;
+    }
+
     this.entityGroupsByName[entityGroup] = results.reduce(
       (acc, { id, name }: EntityRecord) => ({
         ...acc,
@@ -273,6 +315,7 @@ export default class Clockify {
     const clockifyEntityNames = Object.keys(
       this.entityGroupsByName[entityGroup],
     );
+    if (clockifyEntityNames.length === 0) return;
 
     const togglEntityRecords = get(
       this.togglData,
@@ -280,14 +323,19 @@ export default class Clockify {
       [],
     );
 
-    if (isNil(togglEntityRecords)) return Promise.resolve();
+    if (isNil(togglEntityRecords) || togglEntityRecords.length === 0) {
+      this.printStatus(
+        `No ${entityGroup} found in ${workspace.name}, skipping`,
+      );
+      return;
+    }
 
     // Only create entities on Clockify that don't already exist:
     try {
       const entitiesToCreate = togglEntityRecords.filter(
         ({ name }) => !clockifyEntityNames.includes(name),
       );
-      if (entitiesToCreate.length === 0) return Promise.resolve();
+      if (entitiesToCreate.length === 0) return;
 
       // Build array of valid Clockify entities (for API request):
       const newClockifyEntities = entitiesToCreate.map(recordBuilder);
@@ -310,7 +358,7 @@ export default class Clockify {
       await this.loadClockifyEntitiesByName(workspace, entityGroup);
     } catch (error) {
       // TODO: Add better error handling.
-      return Promise.resolve();
+      return;
     }
   }
 
@@ -488,7 +536,7 @@ export default class Clockify {
   public async transferAllDataFromToggl(togglJsonPath: string): Promise<void> {
     await this.loadTogglDataFromJson(togglJsonPath);
     const workspaces = await this.getWorkspaces(true);
-    if (!this.validateWorkspaces(workspaces)) return Promise.resolve();
+    if (!this.validateWorkspaces(workspaces)) return;
 
     this.workspaceIndex = 0;
     for await (const newWorkspaceIndex of this.transferWorkspaceDataIterable(
@@ -519,7 +567,7 @@ export default class Clockify {
         ...timeInterval,
       }));
     } catch (error) {
-      return Promise.resolve([]);
+      return [];
     }
   }
 
@@ -537,7 +585,7 @@ export default class Clockify {
       );
       return projects.map(({ memberships, ...rest }) => rest);
     } catch (error) {
-      return Promise.resolve([]);
+      return [];
     }
   }
 
@@ -552,7 +600,7 @@ export default class Clockify {
     try {
       return await this.makeApiRequest(`/workspaces/${workspace.id}/clients/`);
     } catch (error) {
-      return Promise.resolve([]);
+      return [];
     }
   }
 

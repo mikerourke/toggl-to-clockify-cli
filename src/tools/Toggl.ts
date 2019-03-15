@@ -71,6 +71,10 @@ export default class Toggl {
     });
   }
 
+  private printError(message: string) {
+    console.log(chalk.red(message));
+  }
+
   private printStatus(message: string) {
     console.log(chalk.cyan(message));
   }
@@ -116,10 +120,24 @@ export default class Toggl {
       ...this.getDateRangesForYear(activeYear),
     });
 
-    return await this.makeApiRequest(
-      ContextUrl.Reports,
-      `/details?${queryString}`,
-    );
+    try {
+      return await this.makeApiRequest(
+        ContextUrl.Reports,
+        `/details?${queryString}`,
+      );
+    } catch ({ message }) {
+      this.printError(
+        `Error getting detailed report for workspace: ${message}`,
+      );
+      return {
+        total_grand: 0,
+        total_billable: 0,
+        total_count: 0,
+        per_page: 0,
+        total_currencies: [],
+        data: [],
+      };
+    }
   }
 
   /**
@@ -135,6 +153,7 @@ export default class Toggl {
       workspace,
       activeYear,
     );
+    if (per_page === 0 || total_count === 0) return 0;
     return Math.ceil(total_count / per_page);
   }
 
@@ -243,10 +262,15 @@ export default class Toggl {
   private async getProjectsInWorkspace(
     workspace: GeneralWorkspace,
   ): Promise<ProjectResponse[]> {
-    return await this.makeApiRequest(
-      ContextUrl.Toggl,
-      `/workspaces/${workspace.id}/projects`,
-    );
+    try {
+      return await this.makeApiRequest(
+        ContextUrl.Toggl,
+        `/workspaces/${workspace.id}/projects`,
+      );
+    } catch ({ message }) {
+      this.printError(`Error getting projects in workspace: ${message}`);
+      return [];
+    }
   }
 
   /**
@@ -256,15 +280,22 @@ export default class Toggl {
   private async getClientsInWorkspace(
     workspace: GeneralWorkspace,
   ): Promise<ClientResponse[]> {
-    return await this.makeApiRequest(
-      ContextUrl.Toggl,
-      `/workspaces/${workspace.id}/clients`,
-    );
+    try {
+      return await this.makeApiRequest(
+        ContextUrl.Toggl,
+        `/workspaces/${workspace.id}/clients`,
+      );
+    } catch ({ message }) {
+      this.printError(`Error getting clients in workspace: ${message}`);
+      return [];
+    }
   }
 
   private extrapolateTags(
     timeEntries: TimeEntryResponse[],
   ): { id: string; name: string }[] {
+    if (timeEntries.length === 0) return [];
+
     const allTags: any = [];
     timeEntries.forEach(({ tags }) => {
       if (tags.length !== 0) allTags.push(tags);
@@ -311,10 +342,17 @@ export default class Toggl {
    *    associated contents from config file.
    */
   private async getWorkspaces(): Promise<ConfigWorkspace[]> {
-    const results = await this.makeApiRequest(ContextUrl.Toggl, '/workspaces');
+    let results = [];
+    try {
+      results = await this.makeApiRequest(ContextUrl.Toggl, '/workspaces');
+    } catch ({ message }) {
+      this.printError(`Error getting workspaces: ${message}`);
+    }
+
+    if (results.length === 0) return [];
 
     // Only return workspaces specified in config file:
-    return results.reduce((acc, { id, name }: WorkspaceResponse) => {
+    return (results as any).reduce((acc, { id, name }: WorkspaceResponse) => {
       const configWorkspace = this.config.workspaces.find(
         workspace => get(workspace, 'name', '') === name,
       ) as GeneralWorkspace;
@@ -342,7 +380,7 @@ export default class Toggl {
       '\n',
       'Refer to the README.md file for additional details',
     ].join('');
-    console.log(chalk.red(message));
+    this.printError(message);
     return false;
   }
 
@@ -354,7 +392,7 @@ export default class Toggl {
   public async writeDataToJson(targetPath: string): Promise<void> {
     this.printStatus('Fetching workspaces from Toggl...');
     const workspaces = await this.getWorkspaces();
-    if (!this.validateWorkspaces(workspaces)) return Promise.resolve();
+    if (!this.validateWorkspaces(workspaces)) return;
 
     const entitiesByWorkspace: any = [];
 
