@@ -2,6 +2,18 @@
 
 CLI tool to load Toggl data into Clockify.
 
+# DEPRECATION NOTICE!
+
+### I'M NO LONGER SUPPORTING THIS TOOL. I'VE REDIRECTED MY EFFORTS TOWARDS [THE WEB VERSION](https://github.com/mikerourke/toggl-to-clockify-web)
+
+The web version will be undergoing beta testing soon (week of April
+22nd), I'll provide a link to the hosted tool here as soon as it's
+ready.
+
+**I'm aware that the tool currently doesn't work, but at this point
+fixing it would take some serious effort. Don't worry though, you won't
+need to wait long!**
+
 ## Functionality
 Transfers the following entities from Toggl to Clockify:
 - Projects
